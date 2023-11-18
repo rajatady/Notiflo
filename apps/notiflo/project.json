@@ -1,0 +1,57 @@
+{
+  "name": "notiflo",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/notiflo/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/notiflo",
+        "main": "apps/notiflo/src/main.ts",
+        "tsConfig": "apps/notiflo/tsconfig.app.json",
+        "assets": ["apps/notiflo/src/assets"],
+        "isolatedConfig": true,
+        "webpackConfig": "apps/notiflo/webpack.config.js"
+      },
+      "configurations": {
+        "development": {},
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "notiflo:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "notiflo:build:development"
+        },
+        "production": {
+          "buildTarget": "notiflo:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/notiflo/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/notiflo/jest.config.ts"
+      }
+    }
+  },
+  "tags": []
+}
