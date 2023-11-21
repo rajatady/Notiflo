@@ -1,0 +1,27 @@
+FROM node:18-alpine As development
+
+RUN apk update && apk add yarn curl bash
+
+WORKDIR /usr/src/app
+
+COPY package*.json yarn.lock ./
+
+RUN yarn install --ignore-engines --only=development
+
+COPY . .
+
+RUN yarn build notiflo --prod
+
+
+
+FROM node:18-alpine as production
+
+WORKDIR /usr/src/app
+
+COPY --from=development /usr/src/app/dist/apps/notiflo ./
+
+RUN yarn install --only=production
+
+RUN yarn add source-map-support
+
+CMD node -r source-map-support/register main.js

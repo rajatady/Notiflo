@@ -4,7 +4,11 @@
     "build": {
       "cache": true,
       "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
+      "inputs": ["production", "^production"],
+      "executor": "@nx/webpack:webpack",
+      "options": {
+        "generatePackageJson": true
+      }
     },
     "lint": {
       "cache": true,
