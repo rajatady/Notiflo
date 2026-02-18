@@ -1,5 +1,5 @@
 export default () => ({
   database: {
-    uri: "mongodb://localhost/notiflo",
-  }
+    uri: process.env.MONGODB_URI || 'mongodb://localhost/notiflo',
+  },
 });
