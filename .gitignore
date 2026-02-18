@@ -49,3 +49,7 @@ Thumbs.db
 
 # Lock files (using yarn.lock)
 package-lock.json
+
+# Claude Code personal files (not shared)
+CLAUDE.local.md
+.claude/settings.local.json
