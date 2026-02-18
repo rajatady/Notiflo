@@ -39,3 +39,9 @@ testem.log
 Thumbs.db
 
 .nx/cache
+
+# Downloaded binaries
+*.tgz
+
+# Lock files (using yarn.lock)
+package-lock.json
