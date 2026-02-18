@@ -14,7 +14,11 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@notiflo/analytics/analytics": ["libs/analytics/analytics/src/index.ts"],
+      "@notiflo/pipeline/pipeline": ["libs/pipeline/pipeline/src/index.ts"],
+      "@notiflo/bridge/napi-bridge": ["libs/bridge/napi-bridge/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

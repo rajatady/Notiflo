@@ -19,6 +19,11 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { OrchestratorModule } from './orchestrator/orchestrator.module';
 import { McpModule } from './mcp/mcp.module';
+import { PluginsModule } from './plugins/plugins.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { NapiBridgeModule } from '@notiflo/bridge/napi-bridge';
+import { AlertsModule } from './alerts/alerts.module';
 
 import databaseConfiguration from '../../../../config/database.configuration';
 
@@ -63,6 +68,18 @@ import databaseConfiguration from '../../../../config/database.configuration';
 
     // AI agent / MCP interface
     McpModule,
+
+    PluginsModule,
+
+    WebhooksModule,
+
+    DashboardModule,
+
+    // Rust engine bridge (napi-rs)
+    NapiBridgeModule,
+
+    // Real-time alert conditions
+    AlertsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

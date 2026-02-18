@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "libs/engine/shared-types",
+  "libs/engine/engine-core",
+]
+resolver = "2"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

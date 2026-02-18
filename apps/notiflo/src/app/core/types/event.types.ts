@@ -16,6 +16,7 @@ export enum EventSource {
   WORKFLOW = 'workflow',
   MCP = 'mcp',
   AGENT = 'agent',
+  RUST_ENGINE = 'rust_engine',
 }
 
 export interface EventFilter {
