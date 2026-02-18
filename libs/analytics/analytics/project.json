@@ -1,0 +1,48 @@
+{
+  "name": "analytics-analytics",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/analytics/analytics/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/libs/analytics/analytics",
+        "tsConfig": "libs/analytics/analytics/tsconfig.lib.json",
+        "packageJson": "libs/analytics/analytics/package.json",
+        "main": "libs/analytics/analytics/src/index.ts",
+        "assets": [
+          "libs/analytics/analytics/*.md"
+        ]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "options": {
+        "lintFilePatterns": [
+          "libs/analytics/analytics/**/*.ts",
+          "libs/analytics/analytics/package.json"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "jestConfig": "libs/analytics/analytics/jest.config.ts"
+      }
+    }
+  },
+  "tags": [
+    "scope:analytics",
+    "type:lib"
+  ]
+}

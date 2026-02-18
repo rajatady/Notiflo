@@ -14,7 +14,10 @@ import {
     ]),
   ],
   controllers: [SubscribersController],
-  providers: [SubscribersService],
-  exports: [SubscribersService],
+  providers: [
+    SubscribersService,
+    { provide: 'SubscribersService', useExisting: SubscribersService },
+  ],
+  exports: [SubscribersService, 'SubscribersService'],
 })
 export class SubscribersModule {}

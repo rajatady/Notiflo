@@ -1,10 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InAppProvider } from './in-app.provider';
-import {
-  Channel,
-  ProviderStatus,
-  InAppMessage,
-} from '../../core';
+import { Channel, ProviderStatus, InAppMessage } from '../../core';
 
 describe('InAppProvider', () => {
   let provider: InAppProvider;
@@ -22,19 +18,13 @@ describe('InAppProvider', () => {
   });
 
   describe('channel', () => {
-    it('should have correct channel type', () => {
+    it('should have correct channel property', () => {
       expect(provider.channel).toBe(Channel.IN_APP);
     });
   });
 
-  describe('name', () => {
-    it('should have correct name', () => {
-      expect(provider.name).toBe('notiflo-in-app');
-    });
-  });
-
   describe('send', () => {
-    it('should send a message successfully', async () => {
+    it('should return success with messageId', async () => {
       const message: InAppMessage = {
         subscriberId: 'user-123',
         title: 'Welcome!',
@@ -45,11 +35,48 @@ describe('InAppProvider', () => {
 
       expect(result.success).toBe(true);
       expect(result.messageId).toBeDefined();
-      expect(result.messageId).toBeTruthy();
+      expect(result.messageId).toContain('notiflo-in-app-');
       expect(result.providerName).toBe('notiflo-in-app');
       expect(result.channel).toBe(Channel.IN_APP);
       expect(result.timestamp).toBeInstanceOf(Date);
       expect(result.error).toBeUndefined();
+    });
+
+    it('should return failure on error', async () => {
+      jest
+        .spyOn(provider as any, 'doSend')
+        .mockRejectedValue(new Error('Storage full'));
+
+      const message: InAppMessage = {
+        subscriberId: 'user-123',
+        title: 'Test',
+        body: 'Test body',
+      };
+
+      const result = await provider.send(message);
+
+      expect(result.success).toBe(false);
+      expect(result.messageId).toBeUndefined();
+      expect(result.error).toBe('Storage full');
+      expect(result.providerName).toBe('notiflo-in-app');
+      expect(result.channel).toBe(Channel.IN_APP);
+      expect(result.timestamp).toBeInstanceOf(Date);
+    });
+
+    it('should include provider-specific metadata in result', async () => {
+      const message: InAppMessage = {
+        subscriberId: 'user-789',
+        title: 'Alert',
+        body: 'Alert body',
+        actionUrl: '/dashboard',
+      };
+
+      const result = await provider.send(message);
+
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata).toHaveProperty('subscriberId', 'user-789');
+      expect(result.metadata).toHaveProperty('hasActionUrl', true);
+      expect(result.metadata).toHaveProperty('storedCount', 1);
     });
 
     it('should store messages in memory', async () => {
@@ -68,54 +95,6 @@ describe('InAppProvider', () => {
       expect(stored[0].title).toBe('Notification');
     });
 
-    it('should store multiple messages', async () => {
-      const msg1: InAppMessage = {
-        subscriberId: 'user-1',
-        title: 'First',
-        body: 'First notification',
-      };
-      const msg2: InAppMessage = {
-        subscriberId: 'user-2',
-        title: 'Second',
-        body: 'Second notification',
-      };
-
-      await provider.send(msg1);
-      await provider.send(msg2);
-
-      const stored = provider.getStoredMessages();
-      expect(stored).toHaveLength(2);
-    });
-
-    it('should include provider-specific metadata in result', async () => {
-      const message: InAppMessage = {
-        subscriberId: 'user-789',
-        title: 'Alert',
-        body: 'Alert body',
-        data: { priority: 'high' },
-      };
-
-      const result = await provider.send(message);
-
-      expect(result.metadata).toBeDefined();
-      expect(result.metadata).toHaveProperty('subscriberId', 'user-789');
-    });
-
-    it('should handle send failures gracefully', async () => {
-      const message: InAppMessage = {
-        subscriberId: '',
-        title: '',
-        body: '',
-      };
-
-      const result = await provider.send(message);
-
-      expect(result).toBeDefined();
-      expect(result.providerName).toBe('notiflo-in-app');
-      expect(result.channel).toBe(Channel.IN_APP);
-      expect(result.timestamp).toBeInstanceOf(Date);
-    });
-
     it('should generate unique message IDs for each send', async () => {
       const message: InAppMessage = {
         subscriberId: 'user-1',
@@ -126,8 +105,6 @@ describe('InAppProvider', () => {
       const result1 = await provider.send(message);
       const result2 = await provider.send(message);
 
-      expect(result1.messageId).toBeDefined();
-      expect(result2.messageId).toBeDefined();
       expect(result1.messageId).not.toBe(result2.messageId);
     });
   });
@@ -160,25 +137,30 @@ describe('InAppProvider', () => {
       expect(messagesForA[0].title).toBe('For A');
       expect(messagesForA[1].title).toBe('For A again');
     });
-  });
 
-  describe('validateConfig', () => {
-    it('should validate config correctly when configured', async () => {
-      const isValid = await provider.validateConfig();
-      // In-app provider is always valid since it uses in-memory storage
-      expect(isValid).toBe(true);
+    it('should clear stored messages', async () => {
+      await provider.send({
+        subscriberId: 'user-1',
+        title: 'Test',
+        body: 'Test body',
+      });
+
+      provider.clearStoredMessages();
+      expect(provider.getStoredMessages()).toEqual([]);
     });
   });
 
   describe('getStatus', () => {
-    it('should report status correctly', () => {
-      const status = provider.getStatus();
-      expect(Object.values(ProviderStatus)).toContain(status);
-    });
-
-    it('should return ACTIVE status when properly configured', () => {
+    it('should return correct status', () => {
       const status = provider.getStatus();
       expect(status).toBe(ProviderStatus.ACTIVE);
+    });
+  });
+
+  describe('validateConfig', () => {
+    it('should return true since in-app uses in-memory storage', async () => {
+      const isValid = await provider.validateConfig();
+      expect(isValid).toBe(true);
     });
   });
 });

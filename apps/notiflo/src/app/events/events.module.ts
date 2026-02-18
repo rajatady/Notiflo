@@ -9,17 +9,18 @@ import { EVENT_BUS } from '../core';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: NotifloEventDocument.name, schema: NotifloEventSchema },
+      { name: 'NotifloEvent', schema: NotifloEventSchema },
     ]),
   ],
   controllers: [EventsController],
   providers: [
     EventsService,
+    { provide: 'EventsService', useExisting: EventsService },
     {
       provide: EVENT_BUS,
       useClass: EventBusService,
     },
   ],
-  exports: [EventsService, EVENT_BUS],
+  exports: [EventsService, 'EventsService', EVENT_BUS],
 })
 export class EventsModule {}

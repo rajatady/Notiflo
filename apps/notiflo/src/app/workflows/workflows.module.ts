@@ -17,7 +17,12 @@ import {
     ]),
   ],
   controllers: [WorkflowsController],
-  providers: [WorkflowsService, WorkflowEngineService],
-  exports: [WorkflowsService, WorkflowEngineService],
+  providers: [
+    WorkflowsService,
+    { provide: 'WorkflowsService', useExisting: WorkflowsService },
+    WorkflowEngineService,
+    { provide: 'WorkflowEngine', useExisting: WorkflowEngineService },
+  ],
+  exports: [WorkflowsService, 'WorkflowsService', WorkflowEngineService, 'WorkflowEngine'],
 })
 export class WorkflowsModule {}

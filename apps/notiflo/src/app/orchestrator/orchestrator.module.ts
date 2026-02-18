@@ -18,7 +18,10 @@ import { CampaignsModule } from '../campaigns/campaigns.module';
     WorkflowsModule,
     CampaignsModule,
   ],
-  providers: [OrchestratorService],
-  exports: [OrchestratorService],
+  providers: [
+    OrchestratorService,
+    { provide: 'OrchestratorService', useExisting: OrchestratorService },
+  ],
+  exports: [OrchestratorService, 'OrchestratorService'],
 })
 export class OrchestratorModule {}

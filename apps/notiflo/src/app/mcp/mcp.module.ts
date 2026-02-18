@@ -8,6 +8,7 @@ import { EventsModule } from '../events/events.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CampaignsModule } from '../campaigns/campaigns.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
+import { AlertsModule } from '../alerts/alerts.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { WorkflowsModule } from '../workflows/workflows.module';
     NotificationsModule,
     CampaignsModule,
     WorkflowsModule,
+    AlertsModule,
   ],
   controllers: [McpController],
   providers: [McpToolsService],

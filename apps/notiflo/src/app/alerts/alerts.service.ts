@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -7,8 +7,13 @@ import {
 } from './schemas/alert-condition.schema';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { UpdateAlertDto } from './dto/update-alert.dto';
-import { EngineBridgeService } from '@notiflo/bridge/napi-bridge';
-import { AlertConditionInput } from '@notiflo/bridge/napi-bridge';
+import {
+  ENGINE_BRIDGE,
+  IEngineBridge,
+  AlertConditionInput,
+  ConditionMatchResult,
+  NormalizedTickInput,
+} from '@notiflo/bridge/napi-bridge';
 
 @Injectable()
 export class AlertsService implements OnModuleInit {
@@ -17,14 +22,16 @@ export class AlertsService implements OnModuleInit {
   constructor(
     @InjectModel(AlertCondition.name)
     private readonly alertModel: Model<AlertConditionDocument>,
-    private readonly engineBridge: EngineBridgeService,
+    @Optional()
+    @Inject(ENGINE_BRIDGE)
+    private readonly engineBridge: IEngineBridge | null,
   ) {}
 
   /**
    * On startup, load all active conditions from MongoDB into the Rust engine.
    */
   async onModuleInit() {
-    if (!this.engineBridge.isInitialized()) {
+    if (!this.engineBridge || !this.engineBridge.isInitialized()) {
       this.logger.warn('Engine bridge not initialized — skipping bulk load');
       return;
     }
@@ -53,7 +60,7 @@ export class AlertsService implements OnModuleInit {
     const doc = await this.alertModel.create(dto);
 
     // Sync to Rust engine if active
-    if (doc.active !== false) {
+    if (doc.active !== false && this.engineBridge?.isInitialized()) {
       try {
         this.engineBridge.addCondition(this.toEngineInput(doc));
       } catch (err) {
@@ -101,7 +108,7 @@ export class AlertsService implements OnModuleInit {
       .findByIdAndUpdate(id, dto, { new: true })
       .exec();
 
-    if (doc) {
+    if (doc && this.engineBridge?.isInitialized()) {
       try {
         this.engineBridge.updateCondition(this.toEngineInput(doc));
       } catch (err) {
@@ -115,7 +122,7 @@ export class AlertsService implements OnModuleInit {
   async remove(id: string): Promise<AlertConditionDocument | null> {
     const doc = await this.alertModel.findByIdAndDelete(id).exec();
 
-    if (doc) {
+    if (doc && this.engineBridge?.isInitialized()) {
       try {
         this.engineBridge.removeCondition(doc._id.toString());
       } catch (err) {
@@ -134,7 +141,7 @@ export class AlertsService implements OnModuleInit {
       .findByIdAndUpdate(id, { active }, { new: true })
       .exec();
 
-    if (doc) {
+    if (doc && this.engineBridge?.isInitialized()) {
       try {
         if (active) {
           this.engineBridge.addCondition(this.toEngineInput(doc));
@@ -149,12 +156,43 @@ export class AlertsService implements OnModuleInit {
     return doc;
   }
 
+  /**
+   * Evaluate a tick against all loaded conditions.
+   * Returns matches synchronously (also emits match events via EventEmitter).
+   */
+  evaluateTick(tick: NormalizedTickInput): ConditionMatchResult[] {
+    if (!this.engineBridge?.isInitialized()) {
+      throw new Error('Engine not initialized');
+    }
+    return this.engineBridge.evaluateTick(tick);
+  }
+
+  /**
+   * Record that a condition was triggered — increments triggerCount and sets lastTriggeredAt.
+   */
+  async recordTrigger(conditionId: string): Promise<void> {
+    await this.alertModel.findByIdAndUpdate(conditionId, {
+      $inc: { triggerCount: 1 },
+      $set: { lastTriggeredAt: new Date() },
+    }).exec();
+  }
+
   getEngineMetrics() {
+    if (!this.engineBridge?.isInitialized()) {
+      return { available: false };
+    }
     return this.engineBridge.getMetrics();
   }
 
   getEngineConditionCount(): number {
+    if (!this.engineBridge?.isInitialized()) {
+      return 0;
+    }
     return this.engineBridge.getConditionCount();
+  }
+
+  isEngineAvailable(): boolean {
+    return this.engineBridge?.isInitialized() ?? false;
   }
 
   private toEngineInput(doc: any): AlertConditionInput {

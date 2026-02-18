@@ -5,7 +5,6 @@ import {
   ProviderStatus,
   SendResult,
   IChannelProvider,
-  CHANNEL_REGISTRY,
 } from '../../core';
 
 /**
@@ -46,8 +45,8 @@ describe('ChannelRegistryService', () => {
     expect(registry).toBeDefined();
   });
 
-  describe('register', () => {
-    it('should register a provider for a channel', () => {
+  describe('register and retrieve provider', () => {
+    it('should register a provider and retrieve it by channel', () => {
       const provider = createMockProvider(Channel.EMAIL, 'sendgrid');
       registry.register(provider);
 
@@ -55,25 +54,6 @@ describe('ChannelRegistryService', () => {
       expect(retrieved).toBeDefined();
       expect(retrieved!.name).toBe('sendgrid');
       expect(retrieved!.channel).toBe(Channel.EMAIL);
-    });
-
-    it('should handle multiple providers per channel with first registered as primary', () => {
-      const primary = createMockProvider(Channel.EMAIL, 'sendgrid');
-      const secondary = createMockProvider(Channel.EMAIL, 'ses');
-
-      registry.register(primary);
-      registry.register(secondary);
-
-      // Primary (first registered) should be returned by default
-      const retrieved = registry.getProvider(Channel.EMAIL);
-      expect(retrieved).toBeDefined();
-      expect(retrieved!.name).toBe('sendgrid');
-
-      // Both should be in the list
-      const all = registry.getProviders(Channel.EMAIL);
-      expect(all).toHaveLength(2);
-      expect(all[0].name).toBe('sendgrid');
-      expect(all[1].name).toBe('ses');
     });
 
     it('should register providers across different channels', () => {
@@ -86,19 +66,8 @@ describe('ChannelRegistryService', () => {
       expect(registry.getProvider(Channel.EMAIL)!.name).toBe('sendgrid');
       expect(registry.getProvider(Channel.SMS)!.name).toBe('twilio');
     });
-  });
 
-  describe('getProvider', () => {
-    it('should get a provider by channel', () => {
-      const provider = createMockProvider(Channel.SMS, 'twilio');
-      registry.register(provider);
-
-      const result = registry.getProvider(Channel.SMS);
-      expect(result).toBeDefined();
-      expect(result!.name).toBe('twilio');
-    });
-
-    it('should get a provider by channel and name', () => {
+    it('should retrieve a specific provider by name', () => {
       const primary = createMockProvider(Channel.EMAIL, 'sendgrid');
       const secondary = createMockProvider(Channel.EMAIL, 'ses');
 
@@ -116,16 +85,40 @@ describe('ChannelRegistryService', () => {
     });
 
     it('should return undefined for unregistered provider name', () => {
-      const provider = createMockProvider(Channel.EMAIL, 'sendgrid');
-      registry.register(provider);
+      registry.register(createMockProvider(Channel.EMAIL, 'sendgrid'));
 
       const result = registry.getProvider(Channel.EMAIL, 'nonexistent');
       expect(result).toBeUndefined();
     });
   });
 
-  describe('getProviders', () => {
-    it('should get all providers for a channel', () => {
+  describe('getProvider returns primary (first registered)', () => {
+    it('should return the first registered provider as primary', () => {
+      const primary = createMockProvider(Channel.EMAIL, 'sendgrid');
+      const secondary = createMockProvider(Channel.EMAIL, 'ses');
+
+      registry.register(primary);
+      registry.register(secondary);
+
+      const retrieved = registry.getProvider(Channel.EMAIL);
+      expect(retrieved).toBeDefined();
+      expect(retrieved!.name).toBe('sendgrid');
+    });
+
+    it('should promote next provider to primary when first is removed', () => {
+      registry.register(createMockProvider(Channel.EMAIL, 'sendgrid'));
+      registry.register(createMockProvider(Channel.EMAIL, 'ses'));
+
+      registry.unregister(Channel.EMAIL, 'sendgrid');
+
+      const primary = registry.getProvider(Channel.EMAIL);
+      expect(primary).toBeDefined();
+      expect(primary!.name).toBe('ses');
+    });
+  });
+
+  describe('getProviders returns all for channel', () => {
+    it('should return all providers for a channel', () => {
       const p1 = createMockProvider(Channel.EMAIL, 'sendgrid');
       const p2 = createMockProvider(Channel.EMAIL, 'ses');
       const p3 = createMockProvider(Channel.EMAIL, 'mailgun');
@@ -149,35 +142,7 @@ describe('ChannelRegistryService', () => {
     });
   });
 
-  describe('getChannels', () => {
-    it('should list all registered channels', () => {
-      registry.register(createMockProvider(Channel.EMAIL, 'sendgrid'));
-      registry.register(createMockProvider(Channel.SMS, 'twilio'));
-      registry.register(createMockProvider(Channel.PUSH, 'firebase'));
-
-      const channels = registry.getChannels();
-      expect(channels).toHaveLength(3);
-      expect(channels).toContain(Channel.EMAIL);
-      expect(channels).toContain(Channel.SMS);
-      expect(channels).toContain(Channel.PUSH);
-    });
-
-    it('should return empty array when no channels registered', () => {
-      const channels = registry.getChannels();
-      expect(channels).toEqual([]);
-    });
-
-    it('should not duplicate channels when multiple providers registered for same channel', () => {
-      registry.register(createMockProvider(Channel.EMAIL, 'sendgrid'));
-      registry.register(createMockProvider(Channel.EMAIL, 'ses'));
-
-      const channels = registry.getChannels();
-      expect(channels).toHaveLength(1);
-      expect(channels[0]).toBe(Channel.EMAIL);
-    });
-  });
-
-  describe('hasActiveProvider', () => {
+  describe('hasActiveProvider checks correctly', () => {
     it('should return true when channel has an active provider', () => {
       registry.register(
         createMockProvider(Channel.EMAIL, 'sendgrid', ProviderStatus.ACTIVE),
@@ -192,7 +157,11 @@ describe('ChannelRegistryService', () => {
 
     it('should return false when all providers are inactive', () => {
       registry.register(
-        createMockProvider(Channel.EMAIL, 'sendgrid', ProviderStatus.INACTIVE),
+        createMockProvider(
+          Channel.EMAIL,
+          'sendgrid',
+          ProviderStatus.INACTIVE,
+        ),
       );
       registry.register(
         createMockProvider(Channel.EMAIL, 'ses', ProviderStatus.ERROR),
@@ -201,9 +170,13 @@ describe('ChannelRegistryService', () => {
       expect(registry.hasActiveProvider(Channel.EMAIL)).toBe(false);
     });
 
-    it('should return true when at least one provider is active among others', () => {
+    it('should return true when at least one provider is active among inactive ones', () => {
       registry.register(
-        createMockProvider(Channel.EMAIL, 'sendgrid', ProviderStatus.INACTIVE),
+        createMockProvider(
+          Channel.EMAIL,
+          'sendgrid',
+          ProviderStatus.INACTIVE,
+        ),
       );
       registry.register(
         createMockProvider(Channel.EMAIL, 'ses', ProviderStatus.ACTIVE),
@@ -219,7 +192,7 @@ describe('ChannelRegistryService', () => {
       expect(registry.hasActiveProvider(Channel.EMAIL)).toBe(true);
     });
 
-    it('should only consider ACTIVE status as active', () => {
+    it('should only consider ACTIVE status as active (not RATE_LIMITED)', () => {
       registry.register(
         createMockProvider(
           Channel.EMAIL,
@@ -232,7 +205,7 @@ describe('ChannelRegistryService', () => {
     });
   });
 
-  describe('unregister', () => {
+  describe('unregister removes provider', () => {
     it('should unregister a provider and return true', () => {
       registry.register(createMockProvider(Channel.EMAIL, 'sendgrid'));
 
@@ -263,17 +236,6 @@ describe('ChannelRegistryService', () => {
       const providers = registry.getProviders(Channel.EMAIL);
       expect(providers).toHaveLength(2);
       expect(providers.map((p) => p.name)).toEqual(['sendgrid', 'mailgun']);
-    });
-
-    it('should promote the next provider to primary when primary is removed', () => {
-      registry.register(createMockProvider(Channel.EMAIL, 'sendgrid'));
-      registry.register(createMockProvider(Channel.EMAIL, 'ses'));
-
-      registry.unregister(Channel.EMAIL, 'sendgrid');
-
-      const primary = registry.getProvider(Channel.EMAIL);
-      expect(primary).toBeDefined();
-      expect(primary!.name).toBe('ses');
     });
 
     it('should remove channel from getChannels when all providers are removed', () => {

@@ -10,6 +10,7 @@ import {
   CampaignStatus,
   CampaignStatusError,
 } from '../core';
+import { ConditionMatchResult } from '@notiflo/bridge/napi-bridge';
 
 /**
  * Central orchestration service that ties all Notiflo modules together.
@@ -322,6 +323,42 @@ export class OrchestratorService {
         failed,
       },
     });
+  }
+
+  /**
+   * Process a real-time alert match from the Rust engine.
+   * Sends notifications for each channel specified in the match.
+   */
+  async processAlertMatch(match: ConditionMatchResult): Promise<any[]> {
+    const results: any[] = [];
+    const templateId = match.templateId || 'default-alert';
+    const variables = {
+      symbol: match.symbol,
+      matchedValue: match.matchedValue,
+      matchDetail: match.matchDetail,
+      triggeredAt: new Date().toISOString(),
+    };
+    const metadata = {
+      alertConditionId: match.conditionId,
+      source: 'rust_engine',
+    };
+
+    for (const channelStr of match.channels) {
+      const channel = channelStr as Channel;
+      const result = await this.sendNotification(
+        match.organizationId,
+        match.subscriberId,
+        channel,
+        templateId,
+        variables,
+        metadata,
+      );
+      if (result) {
+        results.push(result);
+      }
+    }
+
+    return results;
   }
 
   /**

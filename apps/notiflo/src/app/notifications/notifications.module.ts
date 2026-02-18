@@ -10,11 +10,14 @@ import {
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: NotificationDocument.name, schema: NotificationSchema },
+      { name: 'Notification', schema: NotificationSchema },
     ]),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
-  exports: [NotificationsService],
+  providers: [
+    NotificationsService,
+    { provide: 'NotificationsService', useExisting: NotificationsService },
+  ],
+  exports: [NotificationsService, 'NotificationsService'],
 })
 export class NotificationsModule {}

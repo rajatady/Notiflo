@@ -16,6 +16,7 @@ describe('McpToolsService', () => {
   let mockEventsService: Record<string, jest.Mock>;
   let mockCampaignsService: Record<string, jest.Mock>;
   let mockWorkflowsService: Record<string, jest.Mock>;
+  let mockAlertsService: Record<string, jest.Mock>;
 
   const orgId = 'org-test-123';
 
@@ -148,6 +149,35 @@ describe('McpToolsService', () => {
       }),
     };
 
+    mockAlertsService = {
+      create: jest.fn().mockResolvedValue({
+        _id: 'alert-001',
+        organizationId: orgId,
+        subscriberId: 'sub-001',
+        symbol: 'BTC/USD',
+        strategyType: 'threshold',
+        active: true,
+      }),
+      findAll: jest.fn().mockResolvedValue([
+        { _id: 'alert-001', symbol: 'BTC/USD', strategyType: 'threshold', active: true },
+        { _id: 'alert-002', symbol: 'ETH/USD', strategyType: 'crossover', active: true },
+      ]),
+      evaluateTick: jest.fn().mockReturnValue([
+        {
+          conditionId: 'alert-001',
+          symbol: 'BTC/USD',
+          strategyType: 'threshold',
+          triggeredAt: Date.now(),
+        },
+      ]),
+      getEngineMetrics: jest.fn().mockReturnValue({
+        conditionCount: 10,
+        evaluationCount: 500,
+        matchCount: 25,
+      }),
+      isEngineAvailable: jest.fn().mockReturnValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         McpToolsService,
@@ -158,6 +188,7 @@ describe('McpToolsService', () => {
         { provide: 'EventsService', useValue: mockEventsService },
         { provide: 'CampaignsService', useValue: mockCampaignsService },
         { provide: 'WorkflowsService', useValue: mockWorkflowsService },
+        { provide: 'AlertsService', useValue: mockAlertsService },
       ],
     }).compile();
 
@@ -198,6 +229,16 @@ describe('McpToolsService', () => {
       expect(toolNames).toContain('trigger_workflow');
       expect(toolNames).toContain('list_templates');
       expect(toolNames).toContain('get_notification_stats');
+    });
+
+    it('should include alert tool definitions', () => {
+      const tools = service.getTools();
+      const toolNames = tools.map((t: McpTool) => t.name);
+
+      expect(toolNames).toContain('create_price_alert');
+      expect(toolNames).toContain('get_engine_status');
+      expect(toolNames).toContain('submit_tick');
+      expect(toolNames).toContain('list_alerts');
     });
   });
 
@@ -399,6 +440,148 @@ describe('McpToolsService', () => {
       expect(result.content[0].text.toLowerCase()).toMatch(
         /missing|required|invalid|validation/,
       );
+    });
+  });
+
+  // --- Alert Tools Tests ---
+
+  describe('create_price_alert tool', () => {
+    it('should create an alert condition via AlertsService', async () => {
+      const result: McpToolResult = await service.executeTool('create_price_alert', {
+        organizationId: orgId,
+        subscriberId: 'sub-001',
+        symbol: 'BTC/USD',
+        strategyType: 'threshold',
+        strategyParams: { threshold: 50000, direction: 'above' },
+        channels: ['email', 'push'],
+        templateId: 'tmpl-alert-001',
+        cooldownMs: 60000,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.isError).toBeFalsy();
+      expect(mockAlertsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgId,
+          subscriberId: 'sub-001',
+          symbol: 'BTC/USD',
+          strategyType: 'threshold',
+          strategyParams: { threshold: 50000, direction: 'above' },
+          channels: ['email', 'push'],
+          templateId: 'tmpl-alert-001',
+          cooldownMs: 60000,
+          active: true,
+        }),
+      );
+
+      const parsedContent = JSON.parse(result.content[0].text);
+      expect(parsedContent._id).toBe('alert-001');
+      expect(parsedContent.symbol).toBe('BTC/USD');
+    });
+
+    it('should return error when required parameters are missing', async () => {
+      const result: McpToolResult = await service.executeTool('create_price_alert', {
+        organizationId: orgId,
+        // Missing subscriberId, symbol, strategyType
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text.toLowerCase()).toMatch(/missing/);
+    });
+  });
+
+  describe('get_engine_status tool', () => {
+    it('should return engine availability and metrics', async () => {
+      const result: McpToolResult = await service.executeTool('get_engine_status', {});
+
+      expect(result).toBeDefined();
+      expect(result.isError).toBeFalsy();
+      expect(mockAlertsService.isEngineAvailable).toHaveBeenCalled();
+      expect(mockAlertsService.getEngineMetrics).toHaveBeenCalled();
+
+      const parsedContent = JSON.parse(result.content[0].text);
+      expect(parsedContent.available).toBe(true);
+      expect(parsedContent.metrics).toBeDefined();
+      expect(parsedContent.metrics.conditionCount).toBe(10);
+      expect(parsedContent.metrics.evaluationCount).toBe(500);
+    });
+  });
+
+  describe('submit_tick tool', () => {
+    it('should evaluate a tick and return matches', async () => {
+      const result: McpToolResult = await service.executeTool('submit_tick', {
+        symbol: 'BTC/USD',
+        value: 51000,
+        timestampUs: 1700000000000000,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.isError).toBeFalsy();
+      expect(mockAlertsService.evaluateTick).toHaveBeenCalledWith({
+        symbol: 'BTC/USD',
+        value: 51000,
+        timestampUs: 1700000000000000,
+        secondaryValue: undefined,
+        textContent: undefined,
+        metadata: undefined,
+      });
+
+      const parsedContent = JSON.parse(result.content[0].text);
+      expect(parsedContent.matchCount).toBe(1);
+      expect(parsedContent.matches).toHaveLength(1);
+      expect(parsedContent.matches[0].conditionId).toBe('alert-001');
+    });
+
+    it('should return error when required parameters are missing', async () => {
+      const result: McpToolResult = await service.executeTool('submit_tick', {
+        symbol: 'BTC/USD',
+        // Missing value and timestampUs
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text.toLowerCase()).toMatch(/missing/);
+    });
+
+    it('should return error when engine throws', async () => {
+      mockAlertsService.evaluateTick.mockImplementation(() => {
+        throw new Error('Engine not initialized');
+      });
+
+      const result: McpToolResult = await service.executeTool('submit_tick', {
+        symbol: 'BTC/USD',
+        value: 51000,
+        timestampUs: 1700000000000000,
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Engine not initialized');
+    });
+  });
+
+  describe('list_alerts tool', () => {
+    it('should list alerts for an organization', async () => {
+      const result: McpToolResult = await service.executeTool('list_alerts', {
+        organizationId: orgId,
+        limit: 10,
+        offset: 0,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.isError).toBeFalsy();
+      expect(mockAlertsService.findAll).toHaveBeenCalledWith(orgId, 10, 0);
+
+      const parsedContent = JSON.parse(result.content[0].text);
+      expect(Array.isArray(parsedContent)).toBe(true);
+      expect(parsedContent).toHaveLength(2);
+      expect(parsedContent[0].symbol).toBe('BTC/USD');
+      expect(parsedContent[1].symbol).toBe('ETH/USD');
+    });
+
+    it('should return error when organizationId is missing', async () => {
+      const result: McpToolResult = await service.executeTool('list_alerts', {});
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text.toLowerCase()).toMatch(/missing/);
     });
   });
 });

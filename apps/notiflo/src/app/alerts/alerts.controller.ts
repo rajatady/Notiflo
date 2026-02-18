@@ -7,10 +7,14 @@ import {
   Param,
   Delete,
   Query,
+  HttpCode,
+  HttpStatus,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { AlertsService } from './alerts.service';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { UpdateAlertDto } from './dto/update-alert.dto';
+import { SubmitTickDto } from './dto/submit-tick.dto';
 
 @Controller('alerts')
 export class AlertsController {
@@ -19,6 +23,16 @@ export class AlertsController {
   @Post()
   create(@Body() createAlertDto: CreateAlertDto) {
     return this.alertsService.create(createAlertDto);
+  }
+
+  @Post('ticks')
+  @HttpCode(HttpStatus.OK)
+  submitTick(@Body() tick: SubmitTickDto) {
+    if (!this.alertsService.isEngineAvailable()) {
+      throw new ServiceUnavailableException('Engine not initialized');
+    }
+    const matches = this.alertsService.evaluateTick(tick);
+    return { matches, count: matches.length };
   }
 
   @Get()

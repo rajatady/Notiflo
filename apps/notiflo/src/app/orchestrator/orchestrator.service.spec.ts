@@ -11,6 +11,7 @@ import {
   CampaignStatus,
   WorkflowExecutionStatus,
 } from '../core';
+import { ConditionMatchResult } from '@notiflo/bridge/napi-bridge';
 
 describe('OrchestratorService', () => {
   let service: OrchestratorService;
@@ -487,6 +488,110 @@ describe('OrchestratorService', () => {
       });
 
       await expect(service.executeCampaign('camp-002')).rejects.toThrow();
+    });
+  });
+
+  describe('processAlertMatch', () => {
+    const makeMatch = (
+      overrides: Partial<ConditionMatchResult> = {},
+    ): ConditionMatchResult => ({
+      conditionId: 'cond-1',
+      organizationId: orgId,
+      subscriberId,
+      symbol: 'AAPL',
+      matchedValue: 160,
+      channels: ['email'],
+      templateId: 'tpl-alert-1',
+      timestampUs: 1000,
+      matchDetail: 'Threshold crossed above 150',
+      ...overrides,
+    });
+
+    it('should send notification for each channel in the match', async () => {
+      const match = makeMatch({ channels: ['email', 'sms'] });
+
+      const smsProvider = {
+        channel: Channel.SMS,
+        name: 'twilio',
+        send: jest.fn().mockResolvedValue({
+          success: true,
+          messageId: 'sms-123',
+          providerName: 'twilio',
+          channel: Channel.SMS,
+          timestamp: new Date(),
+        }),
+        validateConfig: jest.fn().mockResolvedValue(true),
+        getStatus: jest.fn().mockReturnValue('active'),
+      };
+
+      mockChannelRegistry.getProvider.mockImplementation((channel) => {
+        if (channel === Channel.SMS) return smsProvider;
+        return {
+          channel: Channel.EMAIL,
+          name: 'sendgrid',
+          send: jest.fn().mockResolvedValue(mockSendResult),
+          validateConfig: jest.fn(),
+          getStatus: jest.fn().mockReturnValue('active'),
+        };
+      });
+
+      mockTemplateEngine.renderForChannel.mockReturnValue({
+        channel: Channel.EMAIL,
+        subject: 'Alert: AAPL',
+        body: 'AAPL crossed 150',
+      });
+
+      const results = await service.processAlertMatch(match);
+
+      expect(results).toHaveLength(2);
+      expect(mockNotificationsService.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('should use default-alert template when templateId is missing', async () => {
+      const match = makeMatch({ templateId: undefined });
+
+      await service.processAlertMatch(match);
+
+      expect(mockTemplatesService.findOne).toHaveBeenCalledWith('default-alert');
+    });
+
+    it('should attach alertConditionId in metadata', async () => {
+      const match = makeMatch();
+
+      await service.processAlertMatch(match);
+
+      const createCall = mockNotificationsService.create.mock.calls[0][0];
+      expect(createCall.metadata).toEqual(
+        expect.objectContaining({
+          alertConditionId: 'cond-1',
+          source: 'rust_engine',
+        }),
+      );
+    });
+
+    it('should pass alert variables (symbol, matchedValue, matchDetail)', async () => {
+      const match = makeMatch();
+
+      await service.processAlertMatch(match);
+
+      expect(mockTemplateEngine.renderForChannel).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          symbol: 'AAPL',
+          matchedValue: 160,
+          matchDetail: 'Threshold crossed above 150',
+        }),
+        Channel.EMAIL,
+      );
+    });
+
+    it('should return empty results when subscriber not found', async () => {
+      mockSubscribersService.findOne.mockResolvedValue(null);
+
+      const match = makeMatch();
+      const results = await service.processAlertMatch(match);
+
+      expect(results).toHaveLength(0);
     });
   });
 });

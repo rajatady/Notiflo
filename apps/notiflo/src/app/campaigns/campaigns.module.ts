@@ -11,7 +11,10 @@ import { Campaign, CampaignSchema } from './schemas/campaign.schema';
     ]),
   ],
   controllers: [CampaignsController],
-  providers: [CampaignsService],
-  exports: [CampaignsService],
+  providers: [
+    CampaignsService,
+    { provide: 'CampaignsService', useExisting: CampaignsService },
+  ],
+  exports: [CampaignsService, 'CampaignsService'],
 })
 export class CampaignsModule {}

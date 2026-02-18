@@ -60,6 +60,14 @@ export class McpToolsService {
       findOne: (id: string) => Promise<any>;
       create: (data: any) => Promise<any>;
     },
+    @Inject('AlertsService')
+    private readonly alertsService: {
+      create: (dto: any) => Promise<any>;
+      findAll: (organizationId: string, limit?: number, offset?: number) => Promise<any[]>;
+      evaluateTick: (tick: any) => any[];
+      getEngineMetrics: () => any;
+      isEngineAvailable: () => boolean;
+    },
   ) {
     this.toolDefinitions = this.buildToolDefinitions();
   }
@@ -119,6 +127,14 @@ export class McpToolsService {
           return this.handleGetNotificationStats(args);
         case 'list_notifications':
           return this.handleListNotifications(args);
+        case 'create_price_alert':
+          return this.handleCreatePriceAlert(args);
+        case 'get_engine_status':
+          return this.handleGetEngineStatus();
+        case 'submit_tick':
+          return this.handleSubmitTick(args);
+        case 'list_alerts':
+          return this.handleListAlerts(args);
         default:
           return this.errorResult(`Unknown tool: ${toolName}`);
       }
@@ -430,6 +446,85 @@ export class McpToolsService {
     return this.successResult(notifications);
   }
 
+  private async handleCreatePriceAlert(
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
+    const { organizationId, subscriberId, symbol, strategyType, strategyParams, channels, templateId, cooldownMs } = args;
+
+    if (!organizationId || !subscriberId || !symbol || !strategyType) {
+      return this.errorResult(
+        'Missing required parameters: organizationId, subscriberId, symbol, strategyType',
+      );
+    }
+
+    const result = await this.alertsService.create({
+      organizationId,
+      subscriberId,
+      symbol,
+      strategyType,
+      strategyParams: strategyParams || {},
+      channels: channels || [],
+      templateId,
+      cooldownMs: cooldownMs ?? 0,
+      active: true,
+    });
+
+    return this.successResult(result);
+  }
+
+  private async handleGetEngineStatus(): Promise<McpToolResult> {
+    const available = this.alertsService.isEngineAvailable();
+    const metrics = this.alertsService.getEngineMetrics();
+    return this.successResult({ available, metrics });
+  }
+
+  private async handleSubmitTick(
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
+    const { symbol, value, timestampUs, secondaryValue, textContent, metadata } = args;
+
+    if (!symbol || value === undefined || value === null || !timestampUs) {
+      return this.errorResult(
+        'Missing required parameters: symbol, value, timestampUs',
+      );
+    }
+
+    try {
+      const matches = this.alertsService.evaluateTick({
+        symbol: symbol as string,
+        value: value as number,
+        timestampUs: timestampUs as number,
+        secondaryValue: secondaryValue as number | undefined,
+        textContent: textContent as string | undefined,
+        metadata: metadata as string | undefined,
+      });
+
+      return this.successResult({ matches, matchCount: matches.length });
+    } catch (error) {
+      return this.errorResult(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  private async handleListAlerts(
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
+    const { organizationId, limit, offset } = args;
+
+    if (!organizationId) {
+      return this.errorResult('Missing required parameter: organizationId');
+    }
+
+    const alerts = await this.alertsService.findAll(
+      organizationId as string,
+      limit as number,
+      offset as number,
+    );
+
+    return this.successResult(alerts);
+  }
+
   // --- Helpers ---
 
   private successResult(data: unknown): McpToolResult {
@@ -676,6 +771,61 @@ export class McpToolsService {
             limit: { type: 'number' },
             offset: { type: 'number' },
           },
+        },
+      },
+      {
+        name: 'create_price_alert',
+        description: 'Create a price alert condition that triggers notifications when conditions are met',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            organizationId: { type: 'string', description: 'Organization ID' },
+            subscriberId: { type: 'string', description: 'Subscriber to notify' },
+            symbol: { type: 'string', description: 'Symbol to monitor (e.g. BTC/USD)' },
+            strategyType: { type: 'string', description: 'Alert strategy type (e.g. threshold, crossover)' },
+            strategyParams: { type: 'object', description: 'Strategy-specific parameters' },
+            channels: { type: 'array', items: { type: 'string' }, description: 'Notification channels' },
+            templateId: { type: 'string', description: 'Notification template ID' },
+            cooldownMs: { type: 'number', description: 'Cooldown between triggers in ms' },
+          },
+          required: ['organizationId', 'subscriberId', 'symbol', 'strategyType'],
+        },
+      },
+      {
+        name: 'get_engine_status',
+        description: 'Get the status and metrics of the alert evaluation engine',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'submit_tick',
+        description: 'Submit a price tick for evaluation against all loaded alert conditions and return matches',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            symbol: { type: 'string', description: 'Symbol (e.g. BTC/USD)' },
+            value: { type: 'number', description: 'Primary value (e.g. price)' },
+            timestampUs: { type: 'number', description: 'Timestamp in microseconds' },
+            secondaryValue: { type: 'number', description: 'Optional secondary value' },
+            textContent: { type: 'string', description: 'Optional text content' },
+            metadata: { type: 'string', description: 'Optional JSON metadata string' },
+          },
+          required: ['symbol', 'value', 'timestampUs'],
+        },
+      },
+      {
+        name: 'list_alerts',
+        description: 'List alert conditions for an organization',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            organizationId: { type: 'string', description: 'Organization ID' },
+            limit: { type: 'number', description: 'Max results to return' },
+            offset: { type: 'number', description: 'Results offset' },
+          },
+          required: ['organizationId'],
         },
       },
     ];
