@@ -1,38 +1,76 @@
-import {Injectable} from '@nestjs/common';
-import {CreateTemplateDto} from './dto/create-template.dto';
-import {UpdateTemplateDto} from './dto/update-template.dto';
-import {InjectModel} from "@nestjs/mongoose";
-import {INotifloTemplate, NotifloTemplate} from "./schemas/notiflo.template.schema";
-import {Model} from "mongoose";
-import {from} from "rxjs";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  NotifloTemplate,
+  NotifloTemplateDocument,
+} from './schemas/template.schema';
+import { CreateTemplateDto } from './dto/create-template.dto';
+import { UpdateTemplateDto } from './dto/update-template.dto';
 
 @Injectable()
 export class TemplatesService {
-  constructor(@InjectModel(NotifloTemplate.name)
-              private readonly notifloTemplateModel: Model<INotifloTemplate>) {
+  constructor(
+    @InjectModel(NotifloTemplate.name)
+    private readonly templateModel: Model<NotifloTemplateDocument>,
+  ) {}
+
+  async create(
+    createTemplateDto: CreateTemplateDto,
+  ): Promise<NotifloTemplateDocument> {
+    return this.templateModel.create({
+      ...createTemplateDto,
+      version: 1,
+      active: true,
+    });
   }
 
-  create(createTemplateDto: CreateTemplateDto) {
-    return from(
-      this.notifloTemplateModel.create(createTemplateDto)
-    );
+  async findAll(organizationId: string): Promise<NotifloTemplateDocument[]> {
+    return this.templateModel.find({ organizationId }).exec();
   }
 
-  findAll() {
-    return from(
-      this.notifloTemplateModel.find()
-    );
+  async findOne(id: string): Promise<NotifloTemplateDocument | null> {
+    return this.templateModel.findById(id).exec();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} template`;
+  async findByTag(
+    organizationId: string,
+    tag: string,
+  ): Promise<NotifloTemplateDocument[]> {
+    return this.templateModel
+      .find({ organizationId, tags: tag })
+      .exec();
   }
 
-  update(id: number, updateTemplateDto: UpdateTemplateDto) {
-    return `This action updates a #${id} template`;
+  async update(
+    id: string,
+    updateTemplateDto: UpdateTemplateDto,
+  ): Promise<NotifloTemplateDocument | null> {
+    return this.templateModel
+      .findByIdAndUpdate(
+        id,
+        {
+          ...updateTemplateDto,
+          $inc: { version: 1 },
+        },
+        { new: true },
+      )
+      .exec();
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} template`;
+  async remove(id: string): Promise<NotifloTemplateDocument | null> {
+    return this.templateModel.findByIdAndDelete(id).exec();
+  }
+
+  async activate(id: string): Promise<NotifloTemplateDocument | null> {
+    return this.templateModel
+      .findByIdAndUpdate(id, { active: true }, { new: true })
+      .exec();
+  }
+
+  async deactivate(id: string): Promise<NotifloTemplateDocument | null> {
+    return this.templateModel
+      .findByIdAndUpdate(id, { active: false }, { new: true })
+      .exec();
   }
 }

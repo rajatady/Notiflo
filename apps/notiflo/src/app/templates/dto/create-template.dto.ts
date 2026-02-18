@@ -1,37 +1,73 @@
-import {IsObject, IsOptional, IsString, ValidateNested} from "class-validator";
-import {INotifloPushTemplate} from "../schemas/notiflo.push.template.schema";
-import {Type} from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsObject,
+  IsArray,
+  ValidateNested,
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
-
-export class CreatePushTemplateDto {
+class ChannelTemplateContentDto {
   @IsString()
-  title: string;
+  @IsOptional()
+  subject?: string;
 
   @IsString()
+  @IsNotEmpty()
   body: string;
 
-  data?: any;
+  @IsObject()
+  @IsOptional()
+  metadata?: Record<string, unknown>;
+}
+
+class TemplateVariableDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsIn(['string', 'number', 'boolean', 'date', 'object', 'array'])
+  type: 'string' | 'number' | 'boolean' | 'date' | 'object' | 'array';
+
+  @IsBoolean()
+  required: boolean;
+
+  @IsOptional()
+  defaultValue?: unknown;
 
   @IsString()
   @IsOptional()
-  group: string;
-
-  @IsString()
-  @IsOptional()
-  channelId: string;
+  description?: string;
 }
 
 export class CreateTemplateDto {
+  @IsString()
+  @IsNotEmpty()
+  organizationId: string;
 
   @IsString()
+  @IsNotEmpty()
   name: string;
-
-  @IsObject()
-  @ValidateNested()
-  @Type(() => CreatePushTemplateDto)
-  push: INotifloPushTemplate;
 
   @IsString()
   @IsOptional()
-  externalId: string;
+  description?: string;
+
+  @IsObject()
+  channels: Record<string, { subject?: string; body: string; metadata?: Record<string, unknown> }>;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TemplateVariableDto)
+  @IsOptional()
+  variables?: TemplateVariableDto[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 }

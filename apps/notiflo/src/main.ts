@@ -1,11 +1,5 @@
-/**
- * This is not a production server yet!
- * This is only a minimal backend to get started.
- */
-
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-
 import { AppModule } from './app/app.module';
 import {
   FastifyAdapter,
@@ -15,14 +9,36 @@ import {
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter()
+    new FastifyAdapter(),
   );
+
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
+    `Notiflo orchestrator running on: http://localhost:${port}/${globalPrefix}`,
+  );
+  Logger.log(
+    `MCP tools endpoint: http://localhost:${port}/${globalPrefix}/mcp/tools`,
+  );
+  Logger.log(
+    `Health check: http://localhost:${port}/${globalPrefix}/health`,
   );
 }
 
