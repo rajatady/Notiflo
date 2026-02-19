@@ -26,7 +26,6 @@ describe('AppService', () => {
       const result = service.getInfo();
       expect(result.name).toBe('Notiflo');
       expect(result.capabilities.length).toBeGreaterThan(0);
-      expect(result.invocationMethods.length).toBeGreaterThan(0);
     });
   });
 });

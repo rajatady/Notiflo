@@ -12,15 +12,8 @@ import { AppService } from './app.service';
 import { ChannelsModule } from './channels/channels.module';
 import { TemplatesModule } from './templates/templates.module';
 import { SubscribersModule } from './subscribers/subscribers.module';
-import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { WorkflowsModule } from './workflows/workflows.module';
-import { CampaignsModule } from './campaigns/campaigns.module';
 import { OrganizationsModule } from './organizations/organizations.module';
-import { OrchestratorModule } from './orchestrator/orchestrator.module';
-import { McpModule } from './mcp/mcp.module';
-import { PluginsModule } from './plugins/plugins.module';
-import { WebhooksModule } from './webhooks/webhooks.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { NapiBridgeModule } from '@notiflo/bridge/napi-bridge';
 import { AlertsModule } from './alerts/alerts.module';
@@ -53,29 +46,15 @@ import databaseConfiguration from '../../../../config/database.configuration';
     ChannelsModule,
     TemplatesModule,
     SubscribersModule,
-    EventsModule,
     NotificationsModule,
-
-    // Workflow & campaign management
-    WorkflowsModule,
-    CampaignsModule,
 
     // Organization & auth
     OrganizationsModule,
 
-    // Orchestration layer
-    OrchestratorModule,
-
-    // AI agent / MCP interface
-    McpModule,
-
-    PluginsModule,
-
-    WebhooksModule,
-
+    // Dashboard
     DashboardModule,
 
-    // Rust engine bridge (napi-rs)
+    // Rust engine bridge (napi-rs) — config push to engine
     NapiBridgeModule,
 
     // Real-time alert conditions

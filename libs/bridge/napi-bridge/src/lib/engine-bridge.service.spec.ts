@@ -183,8 +183,8 @@ describe('EngineBridgeService', () => {
         batch_timestamp_us: 1000,
       });
 
-      // Simulate Rust calling the callback
-      callback(null, batchJson);
+      // Simulate Rust calling the callback (ErrorStrategy::Fatal = single arg)
+      callback(batchJson);
 
       expect(emitSpy).toHaveBeenCalledWith(
         'engine.condition.match',

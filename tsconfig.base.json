@@ -15,9 +15,8 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@notiflo/analytics/analytics": ["libs/analytics/analytics/src/index.ts"],
-      "@notiflo/pipeline/pipeline": ["libs/pipeline/pipeline/src/index.ts"],
-      "@notiflo/bridge/napi-bridge": ["libs/bridge/napi-bridge/src/index.ts"]
+      "@notiflo/bridge/napi-bridge": ["libs/bridge/napi-bridge/src/index.ts"],
+      "engine-core": ["libs/engine/engine-core/index.d.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

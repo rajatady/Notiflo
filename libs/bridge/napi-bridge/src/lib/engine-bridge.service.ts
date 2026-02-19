@@ -27,8 +27,11 @@ export class EngineBridgeService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     try {
-      // Load the native addon
-      // In production, this path would be resolved via a config or build artifact
+      // engine-core is externalized in webpack.config.js so this require
+      // passes through to Node.js at runtime (not bundled by webpack).
+      // tsconfig paths map 'engine-core' → libs/engine/engine-core/index.js
+      // which loads the platform-specific .node native addon.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       this.engine = require('engine-core');
       this.logger.log('Loaded engine-core native addon');
 
@@ -37,15 +40,13 @@ export class EngineBridgeService implements OnModuleInit, OnModuleDestroy {
       this.initialized = true;
       this.logger.log('Rust condition engine initialized');
 
-      // Register the match callback — bridges Rust → Node.js EventEmitter
-      this.engine.onConditionMatch((err: any, matchesJson: string) => {
-        if (err) {
-          this.logger.error('Engine match callback error', err);
-          return;
-        }
+      // Register the match callback — bridges Rust → Node.js EventEmitter.
+      // ErrorStrategy::Fatal means callback receives (data) not (err, data).
+      this.engine.onConditionMatch((matchesJson: string) => {
         try {
           const batch: ConditionMatchBatch = JSON.parse(matchesJson);
           this.eventEmitter.emit('engine.condition.match', batch);
+          this.logger.debug(`Emitted match batch: ${batch.matches.length} matches`);
         } catch (e) {
           this.logger.error('Failed to parse match batch', e);
         }

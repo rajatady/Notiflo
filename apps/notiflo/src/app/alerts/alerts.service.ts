@@ -29,8 +29,17 @@ export class AlertsService implements OnModuleInit {
 
   /**
    * On startup, load all active conditions from MongoDB into the Rust engine.
+   * Retries briefly if the engine bridge hasn't initialized yet (module init ordering).
    */
   async onModuleInit() {
+    if (this.engineBridge && !this.engineBridge.isInitialized()) {
+      // Engine bridge exists but hasn't finished onModuleInit yet — wait briefly
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        if (this.engineBridge.isInitialized()) break;
+      }
+    }
+
     if (!this.engineBridge || !this.engineBridge.isInitialized()) {
       this.logger.warn('Engine bridge not initialized — skipping bulk load');
       return;
@@ -203,7 +212,7 @@ export class AlertsService implements OnModuleInit {
       symbol: doc.symbol,
       strategyType: doc.strategyType,
       strategyParams: JSON.stringify(doc.strategyParams),
-      channels: doc.channels,
+      channels: [...doc.channels],
       templateId: doc.templateId,
       active: doc.active,
       cooldownMs: doc.cooldownMs,

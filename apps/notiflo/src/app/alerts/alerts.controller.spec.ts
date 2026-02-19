@@ -72,7 +72,9 @@ describe('AlertsController', () => {
       mockAlertsService.evaluateTick.mockReturnValue(matches);
 
       const result = controller.submitTick(tick as any);
-      expect(result).toEqual({ matches, count: 1 });
+      expect(result).toMatchObject({ matches, count: 1 });
+      expect(result).toHaveProperty('engineTimeUs');
+      expect(result).toHaveProperty('conditionsEvaluated');
       expect(mockAlertsService.evaluateTick).toHaveBeenCalledWith(tick);
     });
 

@@ -31,8 +31,16 @@ export class AlertsController {
     if (!this.alertsService.isEngineAvailable()) {
       throw new ServiceUnavailableException('Engine not initialized');
     }
+    const start = process.hrtime.bigint();
     const matches = this.alertsService.evaluateTick(tick);
-    return { matches, count: matches.length };
+    const elapsed = process.hrtime.bigint() - start;
+    const engineTimeUs = Number(elapsed) / 1000;
+    return {
+      matches,
+      count: matches.length,
+      engineTimeUs: Math.round(engineTimeUs * 100) / 100,
+      conditionsEvaluated: this.alertsService.getEngineConditionCount(),
+    };
   }
 
   @Get()

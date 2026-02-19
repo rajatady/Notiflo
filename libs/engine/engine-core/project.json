@@ -5,8 +5,10 @@
   "sourceRoot": "libs/engine/engine-core/src",
   "targets": {
     "build": {
-      "executor": "@monodon/rust:build",
+      "executor": "@monodon/rust:napi",
       "options": {
+        "dist": "libs/engine/engine-core",
+        "jsFile": "index.js",
         "release": true
       }
     },

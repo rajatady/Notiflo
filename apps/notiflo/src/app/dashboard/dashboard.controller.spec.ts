@@ -61,8 +61,8 @@ describe('DashboardController', () => {
 
   describe('GET /dashboard/overview', () => {
     it('should delegate to dashboardService.getOverview', async () => {
-      await controller.getOverview({} as any, 'org-1');
-      expect(mockDashboardService.getOverview).toHaveBeenCalledWith('org-1', {});
+      await controller.getOverview({ orgId: 'org-1' } as any);
+      expect(mockDashboardService.getOverview).toHaveBeenCalledWith('org-1', { orgId: 'org-1' });
     });
   });
 });

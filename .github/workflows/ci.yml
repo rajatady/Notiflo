@@ -1,0 +1,93 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --no-default-features
+      - run: cargo clippy --workspace --no-default-features -- -D warnings
+      - run: cargo build --release --bin notiflo-runtime --no-default-features
+
+  rust-integration:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --tests -p notiflo-runtime --no-default-features --features integration-tests
+        env:
+          NOTIFLO_MONGODB_URI: mongodb://localhost:27017
+          NOTIFLO_REDIS_URL: redis://localhost:6379
+
+  node:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: npx nx test notiflo --passWithNoTests
+
+  nestjs-e2e:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: npx nx e2e notiflo-e2e
+        env:
+          REDIS_URL: redis://localhost:6379
+
+  load-test-smoke:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run hot-path load test (smoke)
+        run: cargo run --release --bin load-test -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379

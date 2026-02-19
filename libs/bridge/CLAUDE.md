@@ -9,7 +9,10 @@ Wraps the Rust `engine-core` napi addon for use in NestJS.
 - `napi-bridge.module.ts` — `@Global()` module providing both implementations
 
 ## Data Flow
-TS -> JSON.stringify -> napi function -> Rust deserializes -> evaluates -> ThreadsafeFunction callback -> EventEmitter2 event
+TS -> JSON.stringify -> napi function -> Rust deserializes -> evaluates -> ThreadsafeFunction callback (single arg, Fatal strategy) -> EventEmitter2 event
+
+## Webpack Loading
+`require('engine-core')` is externalized in webpack.config.js to the absolute path of `libs/engine/engine-core/index.js`. This bypasses webpack bundling so Node.js loads the `.node` binary at runtime.
 
 ## Testing
 - ALL Jest tests use `MockEngineBridgeService`

@@ -16,4 +16,9 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/notiflo-e2e',
+  testMatch: [
+    '<rootDir>/src/**/*.spec.ts',
+    '<rootDir>/src/**/*.e2e-spec.ts',
+  ],
+  testTimeout: 30000,
 };

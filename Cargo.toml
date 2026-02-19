@@ -2,6 +2,7 @@
 members = [
   "libs/engine/shared-types",
   "libs/engine/engine-core",
+  "libs/engine/notiflo-runtime",
 ]
 resolver = "2"
 

@@ -6,23 +6,13 @@ import {
   DashboardFiltersDto,
   DashboardOverview,
   ChannelHealth,
-  ActiveCampaignSummary,
   TimelinePoint,
   ProviderHealth,
   TimeRange,
 } from './dto/dashboard.dto';
 import { NotificationDocument } from '../notifications/schemas/notification.schema';
-import { Campaign } from '../campaigns/schemas/campaign.schema';
-import { Workflow } from '../workflows/schemas/workflow.schema';
-import { WorkflowExecution } from '../workflows/schemas/workflow-execution.schema';
 import { Subscriber } from '../subscribers/schemas/subscriber.schema';
-import { NotifloEventDocument } from '../events/schemas/event.schema';
-import {
-  Channel,
-  NotificationStatus,
-  CampaignStatus,
-  WorkflowExecutionStatus,
-} from '../core';
+import { Channel, NotificationStatus } from '../core';
 
 @Injectable()
 export class DashboardService {
@@ -34,22 +24,10 @@ export class DashboardService {
     private readonly engineBridge: IEngineBridge | null,
     @InjectModel(NotificationDocument.name)
     private readonly notificationModel: Model<NotificationDocument>,
-    @InjectModel(Campaign.name)
-    private readonly campaignModel: Model<Campaign>,
-    @InjectModel(Workflow.name)
-    private readonly workflowModel: Model<Workflow>,
-    @InjectModel(WorkflowExecution.name)
-    private readonly workflowExecutionModel: Model<WorkflowExecution>,
     @InjectModel(Subscriber.name)
     private readonly subscriberModel: Model<Subscriber>,
-    @InjectModel(NotifloEventDocument.name)
-    private readonly eventModel: Model<NotifloEventDocument>,
   ) {}
 
-  /**
-   * Build a date-range filter from the DashboardFiltersDto.
-   * Returns a MongoDB $gte/$lte condition for createdAt, or undefined.
-   */
   private buildDateFilter(
     filters?: DashboardFiltersDto,
   ): { createdAt: { $gte: Date; $lte: Date } } | undefined {
@@ -75,14 +53,9 @@ export class DashboardService {
     }
 
     if (!from) return undefined;
-
     return { createdAt: { $gte: from, $lte: to } };
   }
 
-  /**
-   * Aggregate high-level stats: totals, delivery rate, active campaigns,
-   * active workflows, subscriber count, recent events, channel breakdown.
-   */
   async getOverview(
     orgId: string,
     filters?: DashboardFiltersDto,
@@ -96,29 +69,12 @@ export class DashboardService {
     if (filters?.channel) {
       baseMatch.channel = filters.channel;
     }
-    if (filters?.campaignId) {
-      baseMatch.campaignId = filters.campaignId;
-    }
 
-    // Run independent queries in parallel
-    const [
-      statusAgg,
-      channelAgg,
-      activeCampaigns,
-      activeWorkflows,
-      totalSubscribers,
-      recentEvents,
-    ] = await Promise.all([
-      // Notification counts by status
-      this.notificationModel.aggregate<{
-        _id: string;
-        count: number;
-      }>([
+    const [statusAgg, channelAgg, totalSubscribers] = await Promise.all([
+      this.notificationModel.aggregate<{ _id: string; count: number }>([
         { $match: baseMatch },
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
-
-      // Per-channel breakdown
       this.notificationModel.aggregate<{
         _id: string;
         sent: number;
@@ -183,35 +139,9 @@ export class DashboardService {
           },
         },
       ]),
-
-      // Active campaigns count
-      this.campaignModel.countDocuments({
-        organizationId: orgId,
-        status: { $in: [CampaignStatus.RUNNING, CampaignStatus.SCHEDULED] },
-      }),
-
-      // Active workflow executions count
-      this.workflowExecutionModel.countDocuments({
-        organizationId: orgId,
-        status: {
-          $in: [
-            WorkflowExecutionStatus.RUNNING,
-            WorkflowExecutionStatus.WAITING,
-          ],
-        },
-      }),
-
-      // Total subscribers
       this.subscriberModel.countDocuments({ organizationId: orgId }),
-
-      // Recent events (last 24h)
-      this.eventModel.countDocuments({
-        organizationId: orgId,
-        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      }),
     ]);
 
-    // Compute totals from status aggregation
     const statusMap = new Map(statusAgg.map((s) => [s._id, s.count]));
 
     const sentStatuses = [
@@ -248,7 +178,8 @@ export class DashboardService {
       sent: c.sent,
       delivered: c.delivered,
       failed: c.failed,
-      deliveryRate: c.sent > 0 ? Math.round((c.delivered / c.sent) * 10000) / 100 : 0,
+      deliveryRate:
+        c.sent > 0 ? Math.round((c.delivered / c.sent) * 10000) / 100 : 0,
     }));
 
     return {
@@ -259,17 +190,11 @@ export class DashboardService {
         totalSent > 0
           ? Math.round((totalDelivered / totalSent) * 10000) / 100
           : 0,
-      activeCampaigns,
-      activeWorkflows,
       totalSubscribers,
-      recentEvents,
       channelBreakdown,
     };
   }
 
-  /**
-   * Per-channel health derived from recent notification data (last 5 minutes).
-   */
   async getChannelHealth(orgId: string): Promise<ChannelHealth[]> {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
@@ -306,7 +231,12 @@ export class DashboardService {
           avgLatency: {
             $avg: {
               $cond: [
-                { $and: [{ $ifNull: ['$sentAt', false] }, { $ifNull: ['$createdAt', false] }] },
+                {
+                  $and: [
+                    { $ifNull: ['$sentAt', false] },
+                    { $ifNull: ['$createdAt', false] },
+                  ],
+                },
                 { $subtract: ['$sentAt', '$createdAt'] },
                 0,
               ],
@@ -316,7 +246,6 @@ export class DashboardService {
       },
     ]);
 
-    // Map provider counts per channel
     const providerCounts = await this.notificationModel.aggregate<{
       _id: { channel: string };
       providers: number;
@@ -354,7 +283,7 @@ export class DashboardService {
 
       let status: 'healthy' | 'degraded' | 'down';
       if (total === 0) {
-        status = 'healthy'; // No traffic is not necessarily down
+        status = 'healthy';
       } else if (errorRate > 50) {
         status = 'down';
       } else if (errorRate > 10) {
@@ -367,7 +296,7 @@ export class DashboardService {
         channel: ch,
         status,
         throughputPerSecond:
-          total > 0 ? Math.round((total / 300) * 100) / 100 : 0, // 300s = 5 min
+          total > 0 ? Math.round((total / 300) * 100) / 100 : 0,
         errorRate,
         avgLatencyMs: Math.round(stats?.avgLatency ?? 0),
         activeProviders: providerMap.get(ch) ?? 0,
@@ -376,63 +305,16 @@ export class DashboardService {
     });
   }
 
-  /**
-   * Return active/running campaigns with progress metrics.
-   */
-  async getActiveCampaigns(
-    orgId: string,
-  ): Promise<ActiveCampaignSummary[]> {
-    const campaigns = await this.campaignModel
-      .find({
-        organizationId: orgId,
-        status: {
-          $in: [CampaignStatus.RUNNING, CampaignStatus.SCHEDULED],
-        },
-      })
-      .sort({ updatedAt: -1 })
-      .limit(50)
-      .lean()
-      .exec();
-
-    return campaigns.map((c: any) => {
-      const analytics = c.analytics ?? {
-        totalRecipients: 0,
-        sent: 0,
-        delivered: 0,
-        failed: 0,
-      };
-      const total = analytics.totalRecipients || 1; // avoid division by zero
-
-      return {
-        id: c._id.toString(),
-        name: c.name,
-        status: c.status,
-        progress: Math.round(((analytics.sent + analytics.failed) / total) * 100),
-        totalRecipients: analytics.totalRecipients,
-        sent: analytics.sent,
-        delivered: analytics.delivered,
-        failed: analytics.failed,
-        startedAt: c.createdAt?.toISOString() ?? new Date().toISOString(),
-      };
-    });
-  }
-
-  /**
-   * Time-series notification data bucketed by hour or day depending on range.
-   */
   async getTimeline(
     orgId: string,
     filters?: DashboardFiltersDto,
   ): Promise<TimelinePoint[]> {
     const dateFilter = this.buildDateFilter(filters);
-    const match: Record<string, unknown> = {
-      organizationId: orgId,
-    };
+    const match: Record<string, unknown> = { organizationId: orgId };
 
     if (dateFilter) {
       Object.assign(match, dateFilter);
     } else {
-      // Default to last 24 hours
       match.createdAt = {
         $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
       };
@@ -442,7 +324,6 @@ export class DashboardService {
       match.channel = filters.channel;
     }
 
-    // Decide bucket size: hourly for ranges <= 7d, daily otherwise
     const isLargeRange =
       filters?.timeRange === TimeRange.LAST_30D ||
       (filters?.timeRange === TimeRange.CUSTOM &&
@@ -462,7 +343,9 @@ export class DashboardService {
       { $match: match },
       {
         $group: {
-          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+          _id: {
+            $dateToString: { format: dateFormat, date: '$createdAt' },
+          },
           sent: {
             $sum: {
               $cond: [
@@ -527,9 +410,6 @@ export class DashboardService {
     }));
   }
 
-  /**
-   * Per-provider health derived from recent notifications (last 5 min).
-   */
   async getProviderHealth(orgId: string): Promise<ProviderHealth[]> {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
@@ -636,20 +516,22 @@ export class DashboardService {
       return {
         provider: p._id.provider,
         channel: p._id.channel,
-        status: successRate >= 80 ? 'active' : successRate >= 50 ? 'degraded' : 'error',
+        status:
+          successRate >= 80
+            ? 'active'
+            : successRate >= 50
+              ? 'degraded'
+              : 'error',
         circuitBreakerState,
         successRate,
         avgLatencyMs: Math.round(p.avgLatency ?? 0),
-        rateLimitRemaining: -1, // Not tracked at DB level; -1 indicates unknown
+        rateLimitRemaining: -1,
         lastErrorAt: p.lastErrorAt?.toISOString(),
         lastError: p.lastError ?? undefined,
       };
     });
   }
 
-  /**
-   * Subscriber growth over time, bucketed by day.
-   */
   async getSubscriberGrowth(
     orgId: string,
     filters?: DashboardFiltersDto,
@@ -660,7 +542,6 @@ export class DashboardService {
     if (dateFilter) {
       Object.assign(match, dateFilter);
     } else {
-      // Default to last 30 days
       match.createdAt = {
         $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       };
@@ -688,9 +569,6 @@ export class DashboardService {
     }));
   }
 
-  /**
-   * Rust condition engine status and metrics.
-   */
   getEngineStatus(): Record<string, unknown> {
     if (!this.engineBridge || !this.engineBridge.isInitialized()) {
       return { available: false };
@@ -699,55 +577,5 @@ export class DashboardService {
       available: true,
       ...this.engineBridge.getMetrics(),
     };
-  }
-
-  /**
-   * Active workflow executions with associated workflow name.
-   */
-  async getActiveWorkflows(orgId: string): Promise<any[]> {
-    const executions = await this.workflowExecutionModel
-      .find({
-        organizationId: orgId,
-        status: {
-          $in: [
-            WorkflowExecutionStatus.RUNNING,
-            WorkflowExecutionStatus.WAITING,
-            WorkflowExecutionStatus.PAUSED,
-          ],
-        },
-      })
-      .sort({ startedAt: -1 })
-      .limit(50)
-      .lean()
-      .exec();
-
-    if (executions.length === 0) return [];
-
-    // Gather unique workflow IDs to look up names
-    const workflowIds = [
-      ...new Set(executions.map((e: any) => e.workflowId)),
-    ];
-
-    const workflows = await this.workflowModel
-      .find({ _id: { $in: workflowIds } })
-      .select('_id name')
-      .lean()
-      .exec();
-
-    const workflowNameMap = new Map(
-      workflows.map((w: any) => [w._id.toString(), w.name]),
-    );
-
-    return executions.map((e: any) => ({
-      executionId: e._id.toString(),
-      workflowId: e.workflowId,
-      workflowName: workflowNameMap.get(e.workflowId) ?? 'Unknown',
-      subscriberId: e.subscriberId,
-      status: e.status,
-      currentStepId: e.currentStepId,
-      stepsCompleted: e.stepResults?.length ?? 0,
-      startedAt: e.startedAt?.toISOString() ?? e.createdAt?.toISOString(),
-      error: e.error,
-    }));
   }
 }

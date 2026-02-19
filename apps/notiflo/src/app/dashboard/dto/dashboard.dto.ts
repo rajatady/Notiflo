@@ -10,6 +10,10 @@ export enum TimeRange {
 
 export class DashboardFiltersDto {
   @IsOptional()
+  @IsString()
+  orgId?: string;
+
+  @IsOptional()
   @IsEnum(TimeRange)
   timeRange?: TimeRange;
 
@@ -24,10 +28,6 @@ export class DashboardFiltersDto {
   @IsOptional()
   @IsString()
   channel?: string;
-
-  @IsOptional()
-  @IsString()
-  campaignId?: string;
 }
 
 export interface DashboardOverview {
@@ -35,10 +35,7 @@ export interface DashboardOverview {
   totalDelivered: number;
   totalFailed: number;
   deliveryRate: number;
-  activeCampaigns: number;
-  activeWorkflows: number;
   totalSubscribers: number;
-  recentEvents: number;
   channelBreakdown: Array<{
     channel: string;
     sent: number;
@@ -75,16 +72,4 @@ export interface ProviderHealth {
   rateLimitRemaining: number;
   lastErrorAt?: string;
   lastError?: string;
-}
-
-export interface ActiveCampaignSummary {
-  id: string;
-  name: string;
-  status: string;
-  progress: number; // 0-100%
-  totalRecipients: number;
-  sent: number;
-  delivered: number;
-  failed: number;
-  startedAt: string;
 }
