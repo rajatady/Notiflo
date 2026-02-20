@@ -99,8 +99,6 @@ jobs:
 
   bench:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -133,27 +131,3 @@ jobs:
           else
             echo "WARNING: Could not parse benchmark output, skipping regression check"
           fi
-
-      - name: Generate benchmark summary
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "## Benchmark Results" > bench_summary.md
-          echo "" >> bench_summary.md
-          echo "| Benchmark | ns/iter | Throughput |" >> bench_summary.md
-          echo "|-----------|---------|------------|" >> bench_summary.md
-          grep "^test " bench_output.txt | while read -r line; do
-            name=$(echo "$line" | awk '{print $2}')
-            ns=$(echo "$line" | awk '{print $5}')
-            if [ -n "$ns" ] && [ "$ns" != "0" ]; then
-              tput=$(echo "scale=2; 1000000000 / $ns" | bc 2>/dev/null || echo "N/A")
-              echo "| \`${name}\` | ${ns} | ${tput}/s |" >> bench_summary.md
-            fi
-          done
-          cat bench_summary.md
-
-      - name: Comment benchmark results on PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: benchmark-results
-          path: bench_summary.md
