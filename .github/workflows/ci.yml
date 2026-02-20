@@ -6,9 +6,50 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NX_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+  NX_HEAD: ${{ github.sha }}
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      node: ${{ steps.filter.outputs.node }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'libs/engine/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/ci.yml'
+            node:
+              - 'apps/notiflo/src/**'
+              - 'libs/bridge/**'
+              - 'libs/pipeline/**'
+              - 'libs/analytics/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - 'tsconfig.base.json'
+              - '.github/workflows/ci.yml'
+            e2e:
+              - 'apps/notiflo/src/**'
+              - 'apps/notiflo-e2e/**'
+              - 'libs/bridge/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.github/workflows/ci.yml'
+
   rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     services:
       mongodb:
@@ -30,6 +71,8 @@ jobs:
       - run: cargo build --release --bin notiflo-runtime --no-default-features
 
   rust-integration:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     services:
       mongodb:
@@ -52,17 +95,23 @@ jobs:
           NOTIFLO_REDIS_URL: redis://localhost:6379
 
   node:
+    needs: changes
+    if: needs.changes.outputs.node == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: npx nx test notiflo --passWithNoTests
+      - run: npx nx affected -t test --passWithNoTests
 
   nestjs-e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     services:
       redis:
@@ -71,17 +120,21 @@ jobs:
           - 6379:6379
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: npx nx e2e notiflo-e2e
+      - run: npx nx affected -t e2e
         env:
           REDIS_URL: redis://localhost:6379
           MONGOMS_VERSION: 8.0.4
 
   load-test-smoke:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     services:
       redis:
@@ -98,6 +151,8 @@ jobs:
         run: cargo run --release --bin load-test --no-default-features -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379
 
   bench:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
