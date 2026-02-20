@@ -4,6 +4,9 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   rust:
     runs-on: ubuntu-latest
@@ -20,6 +23,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
       - run: cargo test --workspace --no-default-features
       - run: cargo clippy --workspace --no-default-features -- -D warnings
       - run: cargo build --release --bin notiflo-runtime --no-default-features
@@ -39,6 +44,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
       - run: cargo test --tests -p notiflo-runtime --no-default-features --features integration-tests
         env:
           NOTIFLO_MONGODB_URI: mongodb://localhost:27017
@@ -46,11 +53,6 @@ jobs:
 
   node:
     runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:7
-        ports:
-          - 27017:27017
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,6 +61,8 @@ jobs:
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: npx nx test notiflo --passWithNoTests
+        env:
+          MONGOMS_VERSION: "7.0.0"
 
   nestjs-e2e:
     runs-on: ubuntu-latest
@@ -77,6 +81,7 @@ jobs:
       - run: npx nx e2e notiflo-e2e
         env:
           REDIS_URL: redis://localhost:6379
+          MONGOMS_VERSION: "7.0.0"
 
   load-test-smoke:
     runs-on: ubuntu-latest
@@ -89,6 +94,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
       - name: Run hot-path load test (smoke)
         run: cargo run --release --bin load-test --no-default-features -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379
 
@@ -98,6 +105,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
 
       - name: Run pipeline benchmarks
         run: cargo bench --bench pipeline_bench --no-default-features -- --output-format bencher 2>&1 | tee bench_output.txt

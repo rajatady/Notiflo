@@ -36,10 +36,10 @@ describe('Redis Stream -> MongoDB Consumer Integration', () => {
   });
 
   afterEach(async () => {
-    if (!redisAvailable) return;
+    if (!redisAvailable || !redis) return;
     // Clean up stream and notifications
     await redis.del(STREAM_KEY);
-    await cleanCollections(db, ['notifications']);
+    if (db) await cleanCollections(db, ['notifications']);
   });
 
   it('consumer writes successful delivery to MongoDB', async () => {

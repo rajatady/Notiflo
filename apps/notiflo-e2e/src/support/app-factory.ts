@@ -21,7 +21,9 @@ export async function getOrCreateApp(): Promise<INestApplication> {
   if (app) return app;
 
   // Start real MongoDB via MongoMemoryServer (real binary, full wire-protocol compatibility)
-  mongod = await MongoMemoryServer.create();
+  mongod = await MongoMemoryServer.create({
+    binary: { version: '7.0.0' },
+  });
   mongoUri = mongod.getUri();
   process.env.MONGODB_URI = mongoUri;
 

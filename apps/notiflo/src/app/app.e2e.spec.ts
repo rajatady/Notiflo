@@ -15,7 +15,9 @@ describe('Notiflo E2E - Alert Lifecycle', () => {
   let mongod: MongoMemoryServer;
 
   beforeAll(async () => {
-    mongod = await MongoMemoryServer.create();
+    mongod = await MongoMemoryServer.create({
+      binary: { version: '7.0.0' },
+    });
     const mongoUri = mongod.getUri();
     process.env.MONGODB_URI = mongoUri;
 
