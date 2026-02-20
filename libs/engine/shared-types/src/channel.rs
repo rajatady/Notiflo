@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 /// Mirrors the TypeScript Channel enum in channel.types.ts
@@ -25,17 +27,21 @@ impl Channel {
             Channel::Slack => "slack",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for Channel {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "email" => Some(Channel::Email),
-            "sms" => Some(Channel::Sms),
-            "push" => Some(Channel::Push),
-            "whatsapp" => Some(Channel::Whatsapp),
-            "in_app" => Some(Channel::InApp),
-            "webhook" => Some(Channel::Webhook),
-            "slack" => Some(Channel::Slack),
-            _ => None,
+            "email" => Ok(Channel::Email),
+            "sms" => Ok(Channel::Sms),
+            "push" => Ok(Channel::Push),
+            "whatsapp" => Ok(Channel::Whatsapp),
+            "in_app" => Ok(Channel::InApp),
+            "webhook" => Ok(Channel::Webhook),
+            "slack" => Ok(Channel::Slack),
+            _ => Err(()),
         }
     }
 }

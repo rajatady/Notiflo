@@ -78,7 +78,7 @@ impl IngestSource for WebSocketSource {
                     let text = match msg {
                         tokio_tungstenite::tungstenite::Message::Text(t) => t,
                         tokio_tungstenite::tungstenite::Message::Binary(b) => {
-                            String::from_utf8(b.into())
+                            String::from_utf8(b)
                                 .context("WebSocket binary frame is not valid UTF-8")?
                         }
                         tokio_tungstenite::tungstenite::Message::Ping(_)

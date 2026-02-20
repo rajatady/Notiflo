@@ -17,6 +17,12 @@ pub struct PipelineStats {
     pub ticks_dropped: AtomicU64,
 }
 
+impl Default for PipelineStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineStats {
     pub fn new() -> Self {
         Self {
@@ -48,7 +54,7 @@ pub async fn run_ingest(
                     stats.ticks_dropped.fetch_add(1, Ordering::Relaxed);
                     // Backpressure: evaluator can't keep up. Log periodically.
                     let dropped = stats.ticks_dropped.load(Ordering::Relaxed);
-                    if dropped % 1000 == 0 {
+                    if dropped.is_multiple_of(1000) {
                         warn!(dropped, "Pipeline backpressure — ticks dropped");
                     }
                 }

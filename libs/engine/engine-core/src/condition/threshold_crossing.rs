@@ -6,23 +6,18 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// Algorithm selection for threshold evaluation.
 ///
 /// - `DriftSentinel`: Index-carry sentinel — O(1) amortized sentinel updates.
-///    After a crossing, the new sentinel position is found by walking the sorted
-///    array from the current index. No binary search needed post-crossing.
-///    Based on: "A stochastic cost model for streaming threshold evaluation
-///    under local continuity."
+///   After a crossing, the new sentinel position is found by walking the sorted
+///   array from the current index. No binary search needed post-crossing.
+///   Based on: "A stochastic cost model for streaming threshold evaluation
+///   under local continuity."
 ///
 /// - `BinarySearch`: Sorted Vec with `partition_point` on every tick.
-///    Always O(log n) per tick regardless of crossing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///   Always O(log n) per tick regardless of crossing.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ThresholdAlgorithm {
+    #[default]
     DriftSentinel,
     BinarySearch,
-}
-
-impl Default for ThresholdAlgorithm {
-    fn default() -> Self {
-        Self::DriftSentinel
-    }
 }
 
 /// Sentinel-based threshold crossing strategy for numeric alerts.

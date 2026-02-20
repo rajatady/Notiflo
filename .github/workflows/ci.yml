@@ -91,3 +91,60 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run hot-path load test (smoke)
         run: cargo run --release --bin load-test --no-default-features -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379
+
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run pipeline benchmarks
+        run: cargo bench --bench pipeline_bench --no-default-features -- --output-format bencher 2>&1 | tee bench_output.txt
+
+      - name: Run condition benchmarks
+        run: cargo bench --bench condition_bench --no-default-features -- --output-format bencher 2>&1 | tee -a bench_output.txt
+
+      - name: Check hot-path regression
+        run: |
+          # Extract evaluate_throughput/threshold_only/1000 result (ns/iter)
+          EVAL_NS=$(grep 'evaluate_throughput/threshold_only/1000' bench_output.txt | head -1 | awk '{print $5}')
+          echo "Evaluate latency (1K conditions): ${EVAL_NS} ns/iter"
+
+          # Fail if evaluate latency exceeds 500ns (>5x regression from ~75ns baseline)
+          # CI runners are slower than local machines, so we use a generous threshold
+          if [ -n "$EVAL_NS" ]; then
+            THRESHOLD=500
+            EVAL_INT=${EVAL_NS%.*}
+            if [ "$EVAL_INT" -gt "$THRESHOLD" ]; then
+              echo "REGRESSION DETECTED: evaluate latency ${EVAL_NS}ns exceeds ${THRESHOLD}ns threshold"
+              exit 1
+            fi
+            echo "OK: evaluate latency ${EVAL_NS}ns within ${THRESHOLD}ns threshold"
+          else
+            echo "WARNING: Could not parse benchmark output, skipping regression check"
+          fi
+
+      - name: Generate benchmark summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## Benchmark Results" > bench_summary.md
+          echo "" >> bench_summary.md
+          echo "| Benchmark | ns/iter | Throughput |" >> bench_summary.md
+          echo "|-----------|---------|------------|" >> bench_summary.md
+          grep "^test " bench_output.txt | while read -r line; do
+            name=$(echo "$line" | awk '{print $2}')
+            ns=$(echo "$line" | awk '{print $5}')
+            if [ -n "$ns" ] && [ "$ns" != "0" ]; then
+              tput=$(echo "scale=2; 1000000000 / $ns" | bc 2>/dev/null || echo "N/A")
+              echo "| \`${name}\` | ${ns} | ${tput}/s |" >> bench_summary.md
+            fi
+          done
+          cat bench_summary.md
+
+      - name: Comment benchmark results on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: benchmark-results
+          path: bench_summary.md

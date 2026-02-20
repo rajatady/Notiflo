@@ -28,6 +28,12 @@ pub struct HttpProvider {
     retry_policy: RetryPolicy,
 }
 
+impl Default for HttpProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HttpProvider {
     pub fn new() -> Self {
         Self {
