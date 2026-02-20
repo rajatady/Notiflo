@@ -1,0 +1,47 @@
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  notiflo-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/notiflo
+      REDIS_URL: redis://redis:6379
+      PORT: "3000"
+    depends_on:
+      - mongodb
+      - redis
+
+  notiflo-runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    environment:
+      NOTIFLO_MONGODB_URI: mongodb://mongodb:27017/notiflo
+      NOTIFLO_REDIS_URL: redis://redis:6379
+      NOTIFLO_INGEST_TYPE: redis
+      NOTIFLO_REDIS_QUEUE_KEY: notiflo:ticks
+      NOTIFLO_CONFIG_POLL_INTERVAL_MS: "5000"
+      NOTIFLO_HEALTH_PORT: "8080"
+      RUST_LOG: notiflo_runtime=info
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+      - redis
+
+volumes:
+  mongo_data:

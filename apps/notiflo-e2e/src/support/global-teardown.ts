@@ -1,7 +1,6 @@
 /* eslint-disable */
 
 module.exports = async function () {
-  // Put clean up logic here (e.g. stopping services, docker-compose, etc.).
-  // Hint: `globalThis` is shared between setup and teardown.
-  console.log(globalThis.__TEARDOWN_MESSAGE__);
+  console.log('\nE2E Teardown: global-teardown invoked.');
+  console.log('App and MongoMemoryServer are cleaned up via afterAll hooks in each test worker.\n');
 };

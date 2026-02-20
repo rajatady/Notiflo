@@ -1,10 +1,10 @@
 /* eslint-disable */
 
-import axios from 'axios';
-
+/**
+ * Jest setupFiles — runs in the same process as the tests,
+ * before each test suite is executed.
+ */
 module.exports = async function () {
-  // Configure axios for tests to use.
-  const host = process.env.HOST ?? 'localhost';
-  const port = process.env.PORT ?? '3000';
-  axios.defaults.baseURL = `http://${host}:${port}`;
+  // Increase default timeout for E2E tests (app boot can take a while)
+  jest.setTimeout(30000);
 };

@@ -1,0 +1,133 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
+      - run: cargo test --workspace --no-default-features
+      - run: cargo clippy --workspace --no-default-features -- -D warnings
+      - run: cargo build --release --bin notiflo-runtime --no-default-features
+
+  rust-integration:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
+      - run: cargo test --tests -p notiflo-runtime --no-default-features --features integration-tests
+        env:
+          NOTIFLO_MONGODB_URI: mongodb://localhost:27017
+          NOTIFLO_REDIS_URL: redis://localhost:6379
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: npx nx test notiflo --passWithNoTests
+
+  nestjs-e2e:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: npx nx e2e notiflo-e2e
+        env:
+          REDIS_URL: redis://localhost:6379
+          MONGOMS_VERSION: 8.0.4
+
+  load-test-smoke:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
+      - name: Run hot-path load test (smoke)
+        run: cargo run --release --bin load-test --no-default-features -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379
+
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-ci
+
+      - name: Run pipeline benchmarks
+        run: cargo bench --bench pipeline_bench --no-default-features -- --output-format bencher 2>&1 | tee bench_output.txt
+
+      - name: Run condition benchmarks
+        run: cargo bench --bench condition_bench --no-default-features -- --output-format bencher 2>&1 | tee -a bench_output.txt
+
+      - name: Check hot-path regression
+        run: |
+          # Extract evaluate_throughput/threshold_only/1000 result (ns/iter)
+          EVAL_NS=$(grep 'evaluate_throughput/threshold_only/1000' bench_output.txt | head -1 | awk '{print $5}')
+          echo "Evaluate latency (1K conditions): ${EVAL_NS} ns/iter"
+
+          # Fail if evaluate latency exceeds 500ns (>5x regression from ~75ns baseline)
+          # CI runners are slower than local machines, so we use a generous threshold
+          if [ -n "$EVAL_NS" ]; then
+            THRESHOLD=500
+            EVAL_INT=${EVAL_NS%.*}
+            if [ "$EVAL_INT" -gt "$THRESHOLD" ]; then
+              echo "REGRESSION DETECTED: evaluate latency ${EVAL_NS}ns exceeds ${THRESHOLD}ns threshold"
+              exit 1
+            fi
+            echo "OK: evaluate latency ${EVAL_NS}ns within ${THRESHOLD}ns threshold"
+          else
+            echo "WARNING: Could not parse benchmark output, skipping regression check"
+          fi

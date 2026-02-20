@@ -1,10 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SmsProvider } from './sms.provider';
-import {
-  Channel,
-  ProviderStatus,
-  SmsMessage,
-} from '../../core';
+import { Channel, ProviderStatus, SmsMessage } from '../../core';
 
 describe('SmsProvider', () => {
   let provider: SmsProvider;
@@ -22,19 +18,13 @@ describe('SmsProvider', () => {
   });
 
   describe('channel', () => {
-    it('should have correct channel type', () => {
+    it('should have correct channel property', () => {
       expect(provider.channel).toBe(Channel.SMS);
     });
   });
 
-  describe('name', () => {
-    it('should have correct name', () => {
-      expect(provider.name).toBe('twilio');
-    });
-  });
-
   describe('send', () => {
-    it('should send a message successfully', async () => {
+    it('should return success with messageId', async () => {
       const message: SmsMessage = {
         to: '+1234567890',
         body: 'Hello from Notiflo!',
@@ -44,11 +34,31 @@ describe('SmsProvider', () => {
 
       expect(result.success).toBe(true);
       expect(result.messageId).toBeDefined();
-      expect(result.messageId).toBeTruthy();
+      expect(result.messageId).toContain('twilio-');
       expect(result.providerName).toBe('twilio');
       expect(result.channel).toBe(Channel.SMS);
       expect(result.timestamp).toBeInstanceOf(Date);
       expect(result.error).toBeUndefined();
+    });
+
+    it('should return failure on error', async () => {
+      jest
+        .spyOn(provider as any, 'doSend')
+        .mockRejectedValue(new Error('SMS gateway timeout'));
+
+      const message: SmsMessage = {
+        to: '+1234567890',
+        body: 'Test message',
+      };
+
+      const result = await provider.send(message);
+
+      expect(result.success).toBe(false);
+      expect(result.messageId).toBeUndefined();
+      expect(result.error).toBe('SMS gateway timeout');
+      expect(result.providerName).toBe('twilio');
+      expect(result.channel).toBe(Channel.SMS);
+      expect(result.timestamp).toBeInstanceOf(Date);
     });
 
     it('should include provider-specific metadata in result', async () => {
@@ -62,20 +72,8 @@ describe('SmsProvider', () => {
 
       expect(result.metadata).toBeDefined();
       expect(result.metadata).toHaveProperty('to', '+1234567890');
-    });
-
-    it('should handle send failures gracefully', async () => {
-      const message: SmsMessage = {
-        to: '',
-        body: '',
-      };
-
-      const result = await provider.send(message);
-
-      expect(result).toBeDefined();
-      expect(result.providerName).toBe('twilio');
-      expect(result.channel).toBe(Channel.SMS);
-      expect(result.timestamp).toBeInstanceOf(Date);
+      expect(result.metadata).toHaveProperty('from', '+0987654321');
+      expect(result.metadata).toHaveProperty('bodyLength', 12);
     });
 
     it('should generate unique message IDs for each send', async () => {
@@ -87,28 +85,21 @@ describe('SmsProvider', () => {
       const result1 = await provider.send(message);
       const result2 = await provider.send(message);
 
-      expect(result1.messageId).toBeDefined();
-      expect(result2.messageId).toBeDefined();
       expect(result1.messageId).not.toBe(result2.messageId);
     });
   });
 
-  describe('validateConfig', () => {
-    it('should validate config correctly when configured', async () => {
-      const isValid = await provider.validateConfig();
-      expect(typeof isValid).toBe('boolean');
+  describe('getStatus', () => {
+    it('should return correct status', () => {
+      const status = provider.getStatus();
+      expect(status).toBe(ProviderStatus.ACTIVE);
     });
   });
 
-  describe('getStatus', () => {
-    it('should report status correctly', () => {
-      const status = provider.getStatus();
-      expect(Object.values(ProviderStatus)).toContain(status);
-    });
-
-    it('should return ACTIVE status when properly configured', () => {
-      const status = provider.getStatus();
-      expect(status).toBe(ProviderStatus.ACTIVE);
+  describe('validateConfig', () => {
+    it('should return true when configured', async () => {
+      const isValid = await provider.validateConfig();
+      expect(isValid).toBe(true);
     });
   });
 });

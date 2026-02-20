@@ -1,10 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WebhookProvider } from './webhook.provider';
-import {
-  Channel,
-  ProviderStatus,
-  WebhookMessage,
-} from '../../core';
+import { Channel, ProviderStatus, WebhookMessage } from '../../core';
 
 describe('WebhookProvider', () => {
   let provider: WebhookProvider;
@@ -22,19 +18,13 @@ describe('WebhookProvider', () => {
   });
 
   describe('channel', () => {
-    it('should have correct channel type', () => {
+    it('should have correct channel property', () => {
       expect(provider.channel).toBe(Channel.WEBHOOK);
     });
   });
 
-  describe('name', () => {
-    it('should have correct name', () => {
-      expect(provider.name).toBe('webhook');
-    });
-  });
-
   describe('send', () => {
-    it('should send a message successfully', async () => {
+    it('should return success with messageId', async () => {
       const message: WebhookMessage = {
         url: 'https://api.example.com/webhook',
         method: 'POST',
@@ -46,39 +36,51 @@ describe('WebhookProvider', () => {
 
       expect(result.success).toBe(true);
       expect(result.messageId).toBeDefined();
-      expect(result.messageId).toBeTruthy();
+      expect(result.messageId).toContain('webhook-');
       expect(result.providerName).toBe('webhook');
       expect(result.channel).toBe(Channel.WEBHOOK);
       expect(result.timestamp).toBeInstanceOf(Date);
       expect(result.error).toBeUndefined();
     });
 
+    it('should return failure on error', async () => {
+      jest
+        .spyOn(provider as any, 'doSend')
+        .mockRejectedValue(new Error('Connection refused'));
+
+      const message: WebhookMessage = {
+        url: 'https://api.example.com/webhook',
+        method: 'POST',
+      };
+
+      const result = await provider.send(message);
+
+      expect(result.success).toBe(false);
+      expect(result.messageId).toBeUndefined();
+      expect(result.error).toBe('Connection refused');
+      expect(result.providerName).toBe('webhook');
+      expect(result.channel).toBe(Channel.WEBHOOK);
+      expect(result.timestamp).toBeInstanceOf(Date);
+    });
+
     it('should include provider-specific metadata in result', async () => {
       const message: WebhookMessage = {
         url: 'https://hooks.example.com/notify',
         method: 'POST',
+        headers: { Authorization: 'Bearer token' },
         body: { type: 'alert' },
       };
 
       const result = await provider.send(message);
 
       expect(result.metadata).toBeDefined();
-      expect(result.metadata).toHaveProperty('url', 'https://hooks.example.com/notify');
+      expect(result.metadata).toHaveProperty(
+        'url',
+        'https://hooks.example.com/notify',
+      );
       expect(result.metadata).toHaveProperty('method', 'POST');
-    });
-
-    it('should handle send failures gracefully', async () => {
-      const message: WebhookMessage = {
-        url: '',
-        method: 'POST',
-      };
-
-      const result = await provider.send(message);
-
-      expect(result).toBeDefined();
-      expect(result.providerName).toBe('webhook');
-      expect(result.channel).toBe(Channel.WEBHOOK);
-      expect(result.timestamp).toBeInstanceOf(Date);
+      expect(result.metadata).toHaveProperty('hasBody', true);
+      expect(result.metadata).toHaveProperty('headerCount', 1);
     });
 
     it('should support different HTTP methods', async () => {
@@ -109,28 +111,21 @@ describe('WebhookProvider', () => {
       const result1 = await provider.send(message);
       const result2 = await provider.send(message);
 
-      expect(result1.messageId).toBeDefined();
-      expect(result2.messageId).toBeDefined();
       expect(result1.messageId).not.toBe(result2.messageId);
     });
   });
 
-  describe('validateConfig', () => {
-    it('should validate config correctly when configured', async () => {
-      const isValid = await provider.validateConfig();
-      expect(typeof isValid).toBe('boolean');
+  describe('getStatus', () => {
+    it('should return correct status', () => {
+      const status = provider.getStatus();
+      expect(status).toBe(ProviderStatus.ACTIVE);
     });
   });
 
-  describe('getStatus', () => {
-    it('should report status correctly', () => {
-      const status = provider.getStatus();
-      expect(Object.values(ProviderStatus)).toContain(status);
-    });
-
-    it('should return ACTIVE status when properly configured', () => {
-      const status = provider.getStatus();
-      expect(status).toBe(ProviderStatus.ACTIVE);
+  describe('validateConfig', () => {
+    it('should return true since webhook config is per-message', async () => {
+      const isValid = await provider.validateConfig();
+      expect(isValid).toBe(true);
     });
   });
 });

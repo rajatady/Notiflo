@@ -18,12 +18,13 @@ import { TEMPLATE_ENGINE } from '../core';
   controllers: [TemplatesController],
   providers: [
     TemplatesService,
+    { provide: 'TemplatesService', useExisting: TemplatesService },
     TemplateEngineService,
     {
       provide: TEMPLATE_ENGINE,
       useExisting: TemplateEngineService,
     },
   ],
-  exports: [TemplatesService, TemplateEngineService, TEMPLATE_ENGINE],
+  exports: [TemplatesService, 'TemplatesService', TemplateEngineService, TEMPLATE_ENGINE],
 })
 export class TemplatesModule {}

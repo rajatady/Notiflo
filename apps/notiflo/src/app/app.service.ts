@@ -15,31 +15,18 @@ export class AppService {
     description: string;
     version: string;
     capabilities: string[];
-    invocationMethods: string[];
   } {
     return {
       name: 'Notiflo',
       description:
-        'AI-native multi-channel marketing orchestration platform',
+        'Real-time alerting pipeline — stream ingestion, condition evaluation, multi-channel delivery',
       version: '1.0.0',
       capabilities: [
-        'multi-channel-notifications',
-        'template-engine',
-        'workflow-automation',
-        'campaign-management',
-        'event-driven-triggers',
+        'drift-sentinel-evaluation-engine',
+        'multi-channel-delivery',
+        'pluggable-strategies',
         'subscriber-management',
-        'channel-preferences',
-        'campaign-approval-workflow',
-        'ai-agent-integration',
-        'mcp-server',
-        'real-time-analytics',
-      ],
-      invocationMethods: [
-        'REST API',
-        'MCP Server (AI Agents)',
-        'Event-driven (Webhooks)',
-        'Dashboard API',
+        'template-engine',
       ],
     };
   }

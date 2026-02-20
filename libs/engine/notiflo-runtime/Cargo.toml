@@ -1,0 +1,53 @@
+[package]
+name = "notiflo-runtime"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "notiflo_runtime_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "notiflo-runtime"
+path = "src/main.rs"
+
+[[bin]]
+name = "load-test"
+path = "src/bin/load_test.rs"
+
+[dependencies]
+shared-types = { path = "../shared-types" }
+engine-core = { path = "../engine-core", default-features = false }
+tokio = { version = "1", features = ["full"] }
+mongodb = "3"
+redis = { version = "0.27", features = ["tokio-comp", "streams"] }
+reqwest = { version = "0.12", features = ["json", "native-tls"] }
+handlebars = "6"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+clap = { version = "4", features = ["derive", "env"] }
+uuid = { version = "1", features = ["v4"] }
+crossbeam-channel = "0.5"
+dashmap = "6"
+parking_lot = "0.12"
+futures-util = "0.3"
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+bson = "2"
+axum = "0.7"
+async-trait = "0.1"
+anyhow = "1"
+wiremock = "0.6"
+
+[features]
+integration-tests = []
+
+[dev-dependencies]
+wiremock = "0.6"
+criterion = { version = "0.5", features = ["html_reports"] }
+tokio = { version = "1", features = ["test-util", "macros", "rt-multi-thread"] }
+
+[[bench]]
+name = "pipeline_bench"
+harness = false

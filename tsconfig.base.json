@@ -14,7 +14,10 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@notiflo/bridge/napi-bridge": ["libs/bridge/napi-bridge/src/index.ts"],
+      "engine-core": ["libs/engine/engine-core/index.d.ts"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

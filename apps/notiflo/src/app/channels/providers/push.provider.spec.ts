@@ -1,10 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PushProvider } from './push.provider';
-import {
-  Channel,
-  ProviderStatus,
-  PushMessage,
-} from '../../core';
+import { Channel, ProviderStatus, PushMessage } from '../../core';
 
 describe('PushProvider', () => {
   let provider: PushProvider;
@@ -22,19 +18,13 @@ describe('PushProvider', () => {
   });
 
   describe('channel', () => {
-    it('should have correct channel type', () => {
+    it('should have correct channel property', () => {
       expect(provider.channel).toBe(Channel.PUSH);
     });
   });
 
-  describe('name', () => {
-    it('should have correct name', () => {
-      expect(provider.name).toBe('firebase');
-    });
-  });
-
   describe('send', () => {
-    it('should send a message successfully', async () => {
+    it('should return success with messageId', async () => {
       const message: PushMessage = {
         title: 'New Notification',
         body: 'You have a new message',
@@ -45,11 +35,32 @@ describe('PushProvider', () => {
 
       expect(result.success).toBe(true);
       expect(result.messageId).toBeDefined();
-      expect(result.messageId).toBeTruthy();
+      expect(result.messageId).toContain('firebase-');
       expect(result.providerName).toBe('firebase');
       expect(result.channel).toBe(Channel.PUSH);
       expect(result.timestamp).toBeInstanceOf(Date);
       expect(result.error).toBeUndefined();
+    });
+
+    it('should return failure on error', async () => {
+      jest
+        .spyOn(provider as any, 'doSend')
+        .mockRejectedValue(new Error('FCM authentication failed'));
+
+      const message: PushMessage = {
+        title: 'Test',
+        body: 'Test body',
+        tokens: ['token-1'],
+      };
+
+      const result = await provider.send(message);
+
+      expect(result.success).toBe(false);
+      expect(result.messageId).toBeUndefined();
+      expect(result.error).toBe('FCM authentication failed');
+      expect(result.providerName).toBe('firebase');
+      expect(result.channel).toBe(Channel.PUSH);
+      expect(result.timestamp).toBeInstanceOf(Date);
     });
 
     it('should include provider-specific metadata in result', async () => {
@@ -65,21 +76,7 @@ describe('PushProvider', () => {
       expect(result.metadata).toBeDefined();
       expect(result.metadata).toHaveProperty('title', 'Alert');
       expect(result.metadata).toHaveProperty('tokenCount', 1);
-    });
-
-    it('should handle send failures gracefully', async () => {
-      const message: PushMessage = {
-        title: '',
-        body: '',
-        tokens: [],
-      };
-
-      const result = await provider.send(message);
-
-      expect(result).toBeDefined();
-      expect(result.providerName).toBe('firebase');
-      expect(result.channel).toBe(Channel.PUSH);
-      expect(result.timestamp).toBeInstanceOf(Date);
+      expect(result.metadata).toHaveProperty('hasData', true);
     });
 
     it('should generate unique message IDs for each send', async () => {
@@ -92,28 +89,21 @@ describe('PushProvider', () => {
       const result1 = await provider.send(message);
       const result2 = await provider.send(message);
 
-      expect(result1.messageId).toBeDefined();
-      expect(result2.messageId).toBeDefined();
       expect(result1.messageId).not.toBe(result2.messageId);
     });
   });
 
-  describe('validateConfig', () => {
-    it('should validate config correctly when configured', async () => {
-      const isValid = await provider.validateConfig();
-      expect(typeof isValid).toBe('boolean');
+  describe('getStatus', () => {
+    it('should return correct status', () => {
+      const status = provider.getStatus();
+      expect(status).toBe(ProviderStatus.ACTIVE);
     });
   });
 
-  describe('getStatus', () => {
-    it('should report status correctly', () => {
-      const status = provider.getStatus();
-      expect(Object.values(ProviderStatus)).toContain(status);
-    });
-
-    it('should return ACTIVE status when properly configured', () => {
-      const status = provider.getStatus();
-      expect(status).toBe(ProviderStatus.ACTIVE);
+  describe('validateConfig', () => {
+    it('should return true when configured', async () => {
+      const isValid = await provider.validateConfig();
+      expect(isValid).toBe(true);
     });
   });
 });

@@ -34,14 +34,33 @@ yarn-error.log
 testem.log
 /typings
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # System Files
 .DS_Store
 Thumbs.db
 
 .nx/cache
 
+# Rust build artifacts
+/target
+*.node
+
 # Downloaded binaries
 *.tgz
 
 # Lock files (using yarn.lock)
 package-lock.json
+
+# Claude Code personal files (not shared)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Next.js
+.next
+
+# Criterion benchmark reports
+libs/engine/notiflo-runtime/target/criterion/

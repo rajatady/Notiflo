@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-deep text-text-primary antialiased font-body;
+    background-image:
+      linear-gradient(rgba(30,39,54,0.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,39,54,0.2) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  ::selection {
+    background: rgba(6,182,212,0.3);
+    color: #e8ecf1;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0c1019;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2a3548;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a4a62;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-border rounded-xl shadow-card;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    @apply border-border-bright shadow-card-hover;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-border bg-elevated px-3 py-2.5
+           text-sm text-text-primary placeholder-text-muted font-body
+           focus:outline-none focus:ring-1 focus:ring-neon-cyan focus:border-neon-cyan
+           transition-all duration-150;
+  }
+
+  .select-field {
+    @apply input-field appearance-none cursor-pointer bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a8599' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-position: right 12px center;
+  }
+
+  .btn-primary {
+    @apply rounded-lg bg-neon-cyan px-4 py-2.5 text-sm font-semibold text-deep
+           hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed
+           focus:outline-none focus:ring-2 focus:ring-neon-cyan focus:ring-offset-2 focus:ring-offset-deep
+           transition-all duration-150 shadow-glow-cyan;
+  }
+
+  .btn-secondary {
+    @apply rounded-lg border border-border bg-elevated px-4 py-2.5 text-sm font-medium text-text-primary
+           hover:bg-panel hover:border-border-bright
+           disabled:opacity-40 disabled:cursor-not-allowed
+           focus:outline-none focus:ring-1 focus:ring-neon-cyan
+           transition-all duration-150;
+  }
+
+  .btn-danger {
+    @apply rounded-lg bg-neon-rose/10 border border-neon-rose/30 px-4 py-2.5 text-sm font-medium text-neon-rose
+           hover:bg-neon-rose/20 hover:border-neon-rose/50
+           focus:outline-none focus:ring-1 focus:ring-neon-rose
+           transition-all duration-150;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wider;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+
+  .badge-green {
+    @apply badge bg-glow-green text-neon-green border border-neon-green/20;
+  }
+
+  .badge-amber {
+    @apply badge bg-glow-amber text-neon-amber border border-neon-amber/20;
+  }
+
+  .badge-rose {
+    @apply badge bg-glow-rose text-neon-rose border border-neon-rose/20;
+  }
+
+  .badge-cyan {
+    @apply badge bg-glow-cyan text-neon-cyan border border-neon-cyan/20;
+  }
+
+  .badge-violet {
+    @apply badge bg-glow-violet text-neon-violet border border-neon-violet/20;
+  }
+
+  .section-title {
+    @apply font-display text-lg font-bold text-text-primary tracking-tight;
+  }
+
+  .page-title {
+    @apply font-display text-2xl font-extrabold text-text-primary tracking-tight;
+  }
+
+  /* Code editor styling */
+  .code-editor {
+    @apply w-full rounded-lg border border-border bg-deep px-4 py-3
+           text-sm text-neon-green font-mono leading-relaxed
+           focus:outline-none focus:ring-1 focus:ring-neon-violet focus:border-neon-violet
+           resize-y min-h-[160px] transition-all duration-150;
+  }
+
+  /* Stagger animation delays */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+}

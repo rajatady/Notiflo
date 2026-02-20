@@ -87,54 +87,6 @@ export class SubscriberNotFoundError extends NotifloError {
   }
 }
 
-export class WorkflowNotFoundError extends NotifloError {
-  constructor(workflowId: string) {
-    super(
-      `Workflow not found: ${workflowId}`,
-      'WORKFLOW_NOT_FOUND',
-      404,
-      { workflowId },
-    );
-    this.name = 'WorkflowNotFoundError';
-  }
-}
-
-export class WorkflowExecutionError extends NotifloError {
-  constructor(workflowId: string, stepId: string, detail: string) {
-    super(
-      `Workflow '${workflowId}' failed at step '${stepId}': ${detail}`,
-      'WORKFLOW_EXECUTION_FAILED',
-      500,
-      { workflowId, stepId },
-    );
-    this.name = 'WorkflowExecutionError';
-  }
-}
-
-export class CampaignNotFoundError extends NotifloError {
-  constructor(campaignId: string) {
-    super(
-      `Campaign not found: ${campaignId}`,
-      'CAMPAIGN_NOT_FOUND',
-      404,
-      { campaignId },
-    );
-    this.name = 'CampaignNotFoundError';
-  }
-}
-
-export class CampaignStatusError extends NotifloError {
-  constructor(campaignId: string, currentStatus: string, requiredStatus: string) {
-    super(
-      `Campaign '${campaignId}' is '${currentStatus}', must be '${requiredStatus}'`,
-      'CAMPAIGN_INVALID_STATUS',
-      409,
-      { campaignId, currentStatus, requiredStatus },
-    );
-    this.name = 'CampaignStatusError';
-  }
-}
-
 export class OrganizationNotFoundError extends NotifloError {
   constructor(orgId: string) {
     super(
@@ -158,13 +110,3 @@ export class InvalidApiKeyError extends NotifloError {
   }
 }
 
-export class EventValidationError extends NotifloError {
-  constructor(detail: string) {
-    super(
-      `Event validation failed: ${detail}`,
-      'EVENT_VALIDATION_FAILED',
-      400,
-    );
-    this.name = 'EventValidationError';
-  }
-}
