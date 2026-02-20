@@ -79,6 +79,7 @@ jobs:
       - run: npx nx e2e notiflo-e2e
         env:
           REDIS_URL: redis://localhost:6379
+          MONGOMS_VERSION: 8.0.4
 
   load-test-smoke:
     runs-on: ubuntu-latest
@@ -98,6 +99,8 @@ jobs:
 
   bench:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
