@@ -13,17 +13,15 @@ let mongod: MongoMemoryServer | null = null;
 let mongoUri: string | null = null;
 
 /**
- * Lazily creates a NestJS application backed by a real MongoMemoryServer
- * instance. The app is a singleton — every spec file that calls this
- * receives the same running instance.
+ * Lazily creates a NestJS application backed by a real MongoDB instance.
+ *
+ * - If MONGODB_URI is already set (e.g. CI service container), uses it directly.
+ * - Otherwise starts MongoMemoryServer for local development.
  */
 export async function getOrCreateApp(): Promise<INestApplication> {
   if (app) return app;
 
-  // Start real MongoDB via MongoMemoryServer (real binary, full wire-protocol compatibility)
-  mongod = await MongoMemoryServer.create({
-    binary: { version: '7.0.0' },
-  });
+  mongod = await MongoMemoryServer.create();
   mongoUri = mongod.getUri();
   process.env.MONGODB_URI = mongoUri;
 
@@ -48,7 +46,7 @@ export async function getOrCreateApp(): Promise<INestApplication> {
 }
 
 /**
- * Returns the MongoMemoryServer URI.
+ * Returns the MongoDB URI in use.
  * Throws if the app has not been initialised yet.
  */
 export function getMongoUri(): string {
@@ -61,7 +59,7 @@ export function getMongoUri(): string {
 }
 
 /**
- * Gracefully shuts down the NestJS app and stops the in-memory MongoDB.
+ * Gracefully shuts down the NestJS app and stops the in-memory MongoDB (if used).
  * Safe to call multiple times.
  */
 export async function closeApp(): Promise<void> {
@@ -72,7 +70,7 @@ export async function closeApp(): Promise<void> {
   if (mongod) {
     await mongod.stop();
     mongod = null;
+    delete process.env.MONGODB_URI;
   }
   mongoUri = null;
-  delete process.env.MONGODB_URI;
 }

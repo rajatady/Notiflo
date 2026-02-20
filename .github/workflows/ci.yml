@@ -61,8 +61,6 @@ jobs:
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: npx nx test notiflo --passWithNoTests
-        env:
-          MONGOMS_VERSION: "7.0.0"
 
   nestjs-e2e:
     runs-on: ubuntu-latest
@@ -81,7 +79,6 @@ jobs:
       - run: npx nx e2e notiflo-e2e
         env:
           REDIS_URL: redis://localhost:6379
-          MONGOMS_VERSION: "7.0.0"
 
   load-test-smoke:
     runs-on: ubuntu-latest

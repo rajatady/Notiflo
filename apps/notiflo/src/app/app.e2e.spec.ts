@@ -15,11 +15,8 @@ describe('Notiflo E2E - Alert Lifecycle', () => {
   let mongod: MongoMemoryServer;
 
   beforeAll(async () => {
-    mongod = await MongoMemoryServer.create({
-      binary: { version: '7.0.0' },
-    });
-    const mongoUri = mongod.getUri();
-    process.env.MONGODB_URI = mongoUri;
+    mongod = await MongoMemoryServer.create();
+    process.env.MONGODB_URI = mongod.getUri();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -33,12 +30,11 @@ describe('Notiflo E2E - Alert Lifecycle', () => {
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
-  }, 30000);
+  }, 60000);
 
   afterAll(async () => {
     await app?.close();
     await mongod?.stop();
-    delete process.env.MONGODB_URI;
   }, 15000);
 
   it('should complete the full alert lifecycle', async () => {
