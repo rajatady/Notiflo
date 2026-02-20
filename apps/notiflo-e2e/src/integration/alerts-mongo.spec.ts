@@ -57,7 +57,7 @@ describe('Alerts <-> MongoDB Integration', () => {
     const alert = await createAlert(app, orgId, subscriberId);
 
     await request(app.getHttpServer())
-      .put(`/alerts/${alert._id}`)
+      .patch(`/alerts/${alert._id}`)
       .send({ name: 'Updated Alert Name' })
       .expect(200);
 

@@ -118,6 +118,13 @@ describe('Alert Lifecycle E2E (Real DB)', () => {
     const tsUs = String(Date.now() * 1000);
 
     try {
+      // Ensure consumer group exists (race with NestJS consumer init)
+      try {
+        await redis.xgroup('CREATE', STREAM_KEY, 'notiflo-api', '0', 'MKSTREAM');
+      } catch (e: any) {
+        if (!e.message?.includes('BUSYGROUP')) throw e;
+      }
+
       // Simulate what the Rust runtime does after delivery
       await redis.xadd(
         STREAM_KEY,
@@ -147,7 +154,7 @@ describe('Alert Lifecycle E2E (Real DB)', () => {
       expect(notification!.status).toBe('delivered');
       expect(notification!.channel).toBe('email');
     } finally {
-      await redis.del(STREAM_KEY);
+      await redis.xtrim(STREAM_KEY, 'MAXLEN', 0);
       await redis.quit();
     }
   }, 10000);

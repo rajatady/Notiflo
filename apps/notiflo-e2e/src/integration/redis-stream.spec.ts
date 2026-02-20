@@ -27,6 +27,14 @@ describe('Redis Stream -> MongoDB Consumer Integration', () => {
     app = await getApp();
     redis = getTestRedis();
     ({ client: mongoClient, db } = await getTestDb());
+
+    // Ensure the consumer group exists (the NestJS consumer creates it on init,
+    // but there's a race if it hasn't connected yet)
+    try {
+      await redis.xgroup('CREATE', STREAM_KEY, 'notiflo-api', '0', 'MKSTREAM');
+    } catch (e: any) {
+      if (!e.message?.includes('BUSYGROUP')) throw e;
+    }
   }, 30000);
 
   afterAll(async () => {
@@ -37,8 +45,8 @@ describe('Redis Stream -> MongoDB Consumer Integration', () => {
 
   afterEach(async () => {
     if (!redisAvailable || !redis) return;
-    // Clean up stream and notifications
-    await redis.del(STREAM_KEY);
+    // Trim the stream instead of deleting it — preserves the consumer group
+    await redis.xtrim(STREAM_KEY, 'MAXLEN', 0);
     if (db) await cleanCollections(db, ['notifications']);
   });
 
