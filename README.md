@@ -141,7 +141,7 @@ redis-cli LPUSH notiflo:ticks '{"symbol":"AAPL","value":160,"timestampUs":170830
 ### Prerequisites
 
 - Rust 1.78+
-- Node.js 18+
+- Node.js 20+
 - Yarn
 - MongoDB 7+
 - Redis 7+

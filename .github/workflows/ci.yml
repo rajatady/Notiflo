@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: npx nx test notiflo --passWithNoTests
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: npx nx e2e notiflo-e2e
@@ -90,4 +90,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run hot-path load test (smoke)
-        run: cargo run --release --bin load-test -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379
+        run: cargo run --release --bin load-test --no-default-features -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379

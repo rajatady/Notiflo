@@ -5,7 +5,7 @@ Thank you for your interest in contributing to Notiflo. This guide covers the pr
 ## Prerequisites
 
 - **Rust 1.78+** -- for the runtime engine
-- **Node.js 18+** and **Yarn** -- for the NestJS API
+- **Node.js 20+** and **Yarn** -- for the NestJS API
 - **MongoDB 7+** -- primary data store
 - **Redis 7+** -- queue, pub/sub, and event streams
 

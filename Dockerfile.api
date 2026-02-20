@@ -1,4 +1,4 @@
-FROM node:18-alpine As development
+FROM node:20-alpine As development
 
 RUN apk update && apk add yarn curl bash
 
@@ -14,7 +14,7 @@ RUN yarn build notiflo --prod
 
 
 
-FROM node:18-alpine as production
+FROM node:20-alpine as production
 
 WORKDIR /usr/src/app
 
