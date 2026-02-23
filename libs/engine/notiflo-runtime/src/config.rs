@@ -11,25 +11,13 @@ pub struct RuntimeConfig {
     #[arg(long, env = "NOTIFLO_REDIS_URL")]
     pub redis_url: String,
 
-    /// Ingest source type
-    #[arg(long, env = "NOTIFLO_INGEST_TYPE", default_value = "redis")]
-    pub ingest_type: IngestType,
-
-    /// Redis queue key for tick ingestion
-    #[arg(long, env = "NOTIFLO_REDIS_QUEUE_KEY", default_value = "notiflo:ticks")]
-    pub redis_queue_key: String,
-
-    /// WebSocket URL for tick ingestion
-    #[arg(long, env = "NOTIFLO_WS_URL")]
-    pub ws_url: Option<String>,
-
-    /// WebSocket reconnect delay in ms
-    #[arg(long, env = "NOTIFLO_WS_RECONNECT_MS", default_value = "3000")]
-    pub ws_reconnect_ms: u64,
-
-    /// Config poll interval in ms
+    /// Config poll interval in ms (alert conditions)
     #[arg(long, env = "NOTIFLO_CONFIG_POLL_INTERVAL_MS", default_value = "5000")]
     pub config_poll_interval_ms: u64,
+
+    /// Connector poll interval in ms (ingest connector changes)
+    #[arg(long, env = "NOTIFLO_CONNECTOR_POLL_INTERVAL_MS", default_value = "5000")]
+    pub connector_poll_interval_ms: u64,
 
     /// Health check HTTP port
     #[arg(long, env = "NOTIFLO_HEALTH_PORT", default_value = "8080")]
@@ -42,10 +30,4 @@ pub struct RuntimeConfig {
     /// MongoDB database name
     #[arg(long, env = "NOTIFLO_DB_NAME", default_value = "notiflo")]
     pub db_name: String,
-}
-
-#[derive(Debug, Clone, clap::ValueEnum)]
-pub enum IngestType {
-    Redis,
-    Websocket,
 }

@@ -23,8 +23,17 @@ impl EventLog {
     }
 
     /// Log a delivery result to the Redis stream.
-    pub async fn log_delivery(&self, result: &DeliveryResult) -> Result<()> {
+    /// `content` is optionally provided for in_app channel to include rendered notification body.
+    pub async fn log_delivery(
+        &self,
+        result: &DeliveryResult,
+        content: Option<&serde_json::Value>,
+    ) -> Result<()> {
         let mut conn = self.connection.clone();
+
+        let rendered = content
+            .map(|c| serde_json::to_string(c).unwrap_or_default())
+            .unwrap_or_default();
 
         // XADD with approximate trimming
         redis::cmd("XADD")
@@ -55,6 +64,8 @@ impl EventLog {
             .arg(result.latency_us)
             .arg("timestamp_us")
             .arg(result.timestamp_us)
+            .arg("rendered_content")
+            .arg(&rendered)
             .query_async::<String>(&mut conn)
             .await
             .context("Failed to XADD delivery event")?;

@@ -11,20 +11,24 @@ import { Model } from 'mongoose';
 import Redis from 'ioredis';
 import { NotificationDocument } from './schemas/notification.schema';
 import { NotificationStatus } from '../core';
+import { NotificationsGateway } from './notifications.gateway';
 
 const STREAM_KEY = 'notiflo:events:delivery';
 const GROUP_NAME = 'notiflo-api';
 const CONSUMER_NAME = 'notiflo-api-1';
+const METRICS_POLL_MS = 5000;
 
 @Injectable()
 export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisStreamConsumer.name);
   private redis: Redis | null = null;
   private running = false;
+  private metricsTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @InjectModel('Notification')
     private readonly notificationModel: Model<NotificationDocument>,
+    private readonly gateway: NotificationsGateway,
     @Optional() private readonly configService?: ConfigService,
   ) {}
 
@@ -43,6 +47,7 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
       await this.createConsumerGroup();
       this.running = true;
       this.consumeLoop();
+      this.startMetricsPolling();
     } catch (err) {
       this.logger.error('Failed to initialise Redis stream consumer', err);
     }
@@ -50,6 +55,10 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     this.running = false;
+    if (this.metricsTimer) {
+      clearInterval(this.metricsTimer);
+      this.metricsTimer = null;
+    }
     if (this.redis) {
       await this.redis.quit();
       this.redis = null;
@@ -111,8 +120,14 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
         for (const [id, fields] of entries) {
           try {
             const data = this.parseFields(fields);
-            await this.persistNotification(data);
+            const doc = await this.persistNotification(data);
             ackIds.push(id);
+
+            // Broadcast to WebSocket clients
+            this.gateway.broadcastDeliveryEvent({
+              ...data,
+              _id: doc._id?.toString(),
+            });
           } catch (err) {
             this.logger.error(
               `Failed to process stream entry ${id}`,
@@ -136,6 +151,24 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private startMetricsPolling(): void {
+    const runtimeUrl =
+      this.configService?.get<string>('NOTIFLO_RUNTIME_URL') ||
+      'http://localhost:8080';
+
+    this.metricsTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`${runtimeUrl}/health`);
+        if (res.ok) {
+          const metrics = await res.json();
+          this.gateway.broadcastMetrics(metrics);
+        }
+      } catch {
+        // Runtime may not be available yet — silently skip
+      }
+    }, METRICS_POLL_MS);
+  }
+
   private parseFields(fields: string[]): Record<string, string> {
     const map: Record<string, string> = {};
     for (let i = 0; i < fields.length; i += 2) {
@@ -146,7 +179,7 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
 
   private async persistNotification(
     data: Record<string, string>,
-  ): Promise<void> {
+  ): Promise<NotificationDocument> {
     const success = data['success'] === 'true';
 
     const doc: Partial<NotificationDocument> = {
@@ -162,6 +195,9 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
         messageId: data['message_id'] || undefined,
         error: data['error'] || undefined,
       },
+      content: data['rendered_content']
+        ? this.tryParseJson(data['rendered_content'])
+        : {},
       metadata: {
         latencyUs: data['latency_us']
           ? Number(data['latency_us'])
@@ -172,7 +208,16 @@ export class RedisStreamConsumer implements OnModuleInit, OnModuleDestroy {
         : undefined,
     };
 
-    await this.notificationModel.create(doc);
+    return this.notificationModel.create(doc);
+  }
+
+  private tryParseJson(str: string): Record<string, unknown> {
+    try {
+      const parsed = JSON.parse(str);
+      return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    } catch {
+      return {};
+    }
   }
 
   private sleep(ms: number): Promise<void> {

@@ -282,7 +282,7 @@ async fn main() -> anyhow::Result<()> {
                                     if !skip_event_log {
                                         if let Some(ref el) = event_log {
                                             let log_start = Instant::now();
-                                            let _ = el.log_delivery(&result).await;
+                                            let _ = el.log_delivery(&result, None).await;
                                             stats.total_event_log_ns.fetch_add(
                                                 log_start.elapsed().as_nanos() as u64,
                                                 Ordering::Relaxed,

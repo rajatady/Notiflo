@@ -17,6 +17,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { NapiBridgeModule } from '@notiflo/bridge/napi-bridge';
 import { AlertsModule } from './alerts/alerts.module';
+import { ConnectorsModule } from './connectors/connectors.module';
 
 import databaseConfiguration from '../../../../config/database.configuration';
 
@@ -59,6 +60,9 @@ import databaseConfiguration from '../../../../config/database.configuration';
 
     // Real-time alert conditions
     AlertsModule,
+
+    // Data source connectors
+    ConnectorsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
