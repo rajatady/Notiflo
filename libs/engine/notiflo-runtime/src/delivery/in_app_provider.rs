@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 /// Zero-cost in-app delivery provider.
 /// Skips HTTP entirely — returns an instant success DeliveryResult.
+#[derive(Default)]
 pub struct InAppProvider;
 
 impl InAppProvider {

@@ -39,7 +39,7 @@ impl MongoSubscriber {
         let has_prefs = self
             .channel_preferences
             .as_ref()
-            .map_or(false, |p| !p.is_empty());
+            .is_some_and(|p| !p.is_empty());
 
         if has_prefs {
             let prefs = self.channel_preferences.as_ref().unwrap();
