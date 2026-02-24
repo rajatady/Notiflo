@@ -126,7 +126,7 @@ jobs:
           node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: npx nx affected -t e2e
+      - run: npx nx e2e notiflo-e2e
         env:
           REDIS_URL: redis://localhost:6379
           MONGOMS_VERSION: 8.0.4

@@ -76,8 +76,9 @@ export function Sidebar() {
         {navItems.map((item) => {
           const isActive = router.pathname === item.href;
           return (
-            <Link key={item.href} href={item.href} data-testid={item.testId}>
+            <Link key={item.href} href={item.href}>
               <span
+                data-testid={item.testId}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 ${
                   isActive
                     ? 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 shadow-glow-cyan'
