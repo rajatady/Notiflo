@@ -8,7 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["napi_binding"]
-napi_binding = ["napi", "napi-derive"]
+napi_binding = ["napi", "napi-derive", "napi-build"]
 
 [dependencies]
 shared-types = { path = "../shared-types" }
@@ -22,7 +22,7 @@ parking_lot = "0.12"
 rhai = { version = "1", features = ["sync", "no_function", "no_module"] }
 
 [build-dependencies]
-napi-build = "2"
+napi-build = { version = "2", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { NotificationsGateway } from './notifications.gateway';
 import { RedisStreamConsumer } from './redis-stream.consumer';
 import {
   NotificationDocument,
@@ -18,6 +19,7 @@ import {
   providers: [
     NotificationsService,
     { provide: 'NotificationsService', useExisting: NotificationsService },
+    NotificationsGateway,
     RedisStreamConsumer,
   ],
   exports: [NotificationsService, 'NotificationsService'],

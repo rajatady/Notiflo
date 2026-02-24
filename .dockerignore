@@ -134,3 +134,10 @@ dist
 .nx
 .vscode
 notiflo
+target/
+.git
+.github
+.claude
+*.md
+!package.json
+!yarn.lock

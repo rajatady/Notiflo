@@ -7,6 +7,8 @@ import {
   SubmitTickPayload,
   TickResult,
   NotificationRecord,
+  Connector,
+  CreateConnectorPayload,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -46,6 +48,18 @@ export const submitTick = (data: SubmitTickPayload) =>
 
 export const getNotifications = (orgId: string) =>
   apiFetch<NotificationRecord[]>(`/notifications?organizationId=${orgId}`);
+
+export const getConnectors = (orgId: string) =>
+  apiFetch<Connector[]>(`/connectors?organizationId=${orgId}`);
+
+export const createConnector = (data: CreateConnectorPayload) =>
+  apiFetch<Connector>('/connectors', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const deleteConnector = (id: string) =>
+  apiFetch<Connector>(`/connectors/${id}`, { method: 'DELETE' });
 
 export const startLoadTest = (config: import('./types').LoadTestConfig) =>
   apiFetch<{ testId: string }>('/load-test/start', {

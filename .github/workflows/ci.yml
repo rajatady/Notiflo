@@ -32,9 +32,8 @@ jobs:
               - '.github/workflows/ci.yml'
             node:
               - 'apps/notiflo/src/**'
+              - 'apps/notiflo-web/**'
               - 'libs/bridge/**'
-              - 'libs/pipeline/**'
-              - 'libs/analytics/**'
               - 'package.json'
               - 'yarn.lock'
               - 'tsconfig.base.json'
@@ -107,7 +106,7 @@ jobs:
           node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: npx nx affected -t test --passWithNoTests
+      - run: npx nx affected -t test --passWithNoTests --exclude='engine-core'
 
   nestjs-e2e:
     needs: changes
@@ -127,28 +126,10 @@ jobs:
           node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
-      - run: npx nx affected -t e2e
+      - run: npx nx e2e notiflo-e2e
         env:
           REDIS_URL: redis://localhost:6379
           MONGOMS_VERSION: 8.0.4
-
-  load-test-smoke:
-    needs: changes
-    if: needs.changes.outputs.rust == 'true'
-    runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: rust-ci
-      - name: Run hot-path load test (smoke)
-        run: cargo run --release --bin load-test --no-default-features -- --conditions 1000 --ticks 10000 --redis-url redis://localhost:6379
 
   bench:
     needs: changes

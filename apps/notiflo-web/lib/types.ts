@@ -134,6 +134,34 @@ export type LoadTestEvent =
   | { type: 'failed'; error: string }
   | { type: 'cancelled' };
 
+// --- Connector types ---
+
+export type ConnectorType = 'redis_stream' | 'redis_queue' | 'websocket' | 'kafka';
+export type ConnectorStatus = 'connected' | 'disconnected' | 'error';
+
+export interface Connector {
+  _id: string;
+  organizationId: string;
+  name: string;
+  type: ConnectorType;
+  config: Record<string, unknown>;
+  active: boolean;
+  status: ConnectorStatus;
+  statusMessage?: string;
+  ticksIngested: number;
+  lastTickAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateConnectorPayload {
+  organizationId: string;
+  name: string;
+  type: ConnectorType;
+  config: Record<string, unknown>;
+  active?: boolean;
+}
+
 export type NotificationStatus =
   | 'pending'
   | 'queued'
@@ -154,7 +182,22 @@ export interface NotificationRecord {
   provider: string;
   content: Record<string, unknown>;
   result?: { success: boolean; messageId?: string; error?: string };
+  metadata?: { latencyUs?: number };
   createdAt: string;
   updatedAt: string;
   sentAt?: string;
+}
+
+export interface PipelineMetrics {
+  ticks_ingested: number;
+  ticks_evaluated: number;
+  matches_found: number;
+  ticks_dropped: number;
+  active_connectors: number;
+  uptime_secs: number;
+  avg_eval_latency_us: number;
+  max_eval_latency_us: number;
+  avg_delivery_latency_us: number;
+  deliveries_completed: number;
+  throughput_tps: number;
 }

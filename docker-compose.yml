@@ -2,28 +2,46 @@ services:
   mongodb:
     image: mongo:7
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   notiflo-api:
     build:
       context: .
       dockerfile: Dockerfile.api
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       MONGODB_URI: mongodb://mongodb:27017/notiflo
       REDIS_URL: redis://redis:6379
       PORT: "3000"
+      NOTIFLO_RUNTIME_URL: http://notiflo-runtime:8080
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/dashboard/engine"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
 
   notiflo-runtime:
     build:
@@ -32,16 +50,56 @@ services:
     environment:
       NOTIFLO_MONGODB_URI: mongodb://mongodb:27017/notiflo
       NOTIFLO_REDIS_URL: redis://redis:6379
-      NOTIFLO_INGEST_TYPE: redis
-      NOTIFLO_REDIS_QUEUE_KEY: notiflo:ticks
       NOTIFLO_CONFIG_POLL_INTERVAL_MS: "5000"
+      NOTIFLO_CONNECTOR_POLL_INTERVAL_MS: "5000"
       NOTIFLO_HEALTH_PORT: "8080"
       RUST_LOG: notiflo_runtime=info
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  notiflo-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "4201:4200"
+    environment:
+      API_PROXY_TARGET: http://notiflo-api:3000
+      NEXT_PUBLIC_WS_URL: ws://localhost:3001/ws/notifications
+    depends_on:
+      notiflo-api:
+        condition: service_healthy
+
+  seed:
+    image: curlimages/curl:latest
+    depends_on:
+      notiflo-api:
+        condition: service_healthy
+    volumes:
+      - ./scripts/seed.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh"]
+    environment:
+      API_URL: http://notiflo-api:3000/api
+    restart: "no"
+
+  ticker:
+    image: redis:7-alpine
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    volumes:
+      - ./scripts/ticker-simulator.sh:/ticker-simulator.sh:ro
+    entrypoint: ["sh", "/ticker-simulator.sh"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      STREAM_KEY: notiflo:ticks
+      INTERVAL_MS: "500"
 
 volumes:
   mongo_data:

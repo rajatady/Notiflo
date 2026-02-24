@@ -17,6 +17,16 @@ const navItems = [
     ),
   },
   {
+    label: 'Connectors',
+    href: '/connectors',
+    testId: 'nav-connectors',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 12h6M16 12h6M8 12a4 4 0 108 0 4 4 0 00-8 0" />
+      </svg>
+    ),
+  },
+  {
     label: 'Alerts',
     href: '/alerts',
     testId: 'nav-alerts',

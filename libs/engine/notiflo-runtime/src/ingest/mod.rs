@@ -1,4 +1,5 @@
 pub mod redis_queue;
+pub mod redis_stream;
 pub mod websocket;
 
 use anyhow::Result;

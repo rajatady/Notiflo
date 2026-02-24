@@ -1,0 +1,27 @@
+FROM node:20-alpine AS build
+
+RUN apk update && apk add yarn curl bash python3 make g++
+
+WORKDIR /app
+
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --ignore-engines
+
+COPY . .
+ENV API_PROXY_TARGET=http://notiflo-api:3000
+RUN npx nx build notiflo-web --configuration=production
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=build /app/dist/apps/notiflo-web/.next ./.next
+COPY --from=build /app/dist/apps/notiflo-web/public ./public
+COPY --from=build /app/apps/notiflo-web/next.config.js ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
+
+ENV API_PROXY_TARGET=http://notiflo-api:3000
+
+EXPOSE 4200
+CMD ["npx", "next", "start", "-p", "4200"]

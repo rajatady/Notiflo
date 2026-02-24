@@ -36,7 +36,13 @@ impl MongoSubscriber {
         let mut enabled_channels = Vec::new();
         let mut provider_overrides = HashMap::new();
 
-        if let Some(prefs) = &self.channel_preferences {
+        let has_prefs = self
+            .channel_preferences
+            .as_ref()
+            .is_some_and(|p| !p.is_empty());
+
+        if has_prefs {
+            let prefs = self.channel_preferences.as_ref().unwrap();
             for (channel, pref) in prefs {
                 let enabled = pref.enabled.unwrap_or(true);
                 if !enabled {
@@ -63,7 +69,7 @@ impl MongoSubscriber {
                 }
             }
         } else {
-            // No preferences — auto-detect from available data
+            // No preferences or empty — auto-detect from available data
             if let Some(email) = &self.email {
                 channel_endpoints.insert("email".to_string(), email.clone());
                 enabled_channels.push("email".to_string());
@@ -78,6 +84,9 @@ impl MongoSubscriber {
                     enabled_channels.push("push".to_string());
                 }
             }
+            // in_app is always available — uses subscriber ID as endpoint
+            channel_endpoints.insert("in_app".to_string(), self.id.to_hex());
+            enabled_channels.push("in_app".to_string());
         }
 
         SubscriberRouting {
